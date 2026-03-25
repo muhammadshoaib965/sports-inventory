@@ -22,15 +22,12 @@
 
   <div class="card p-3">
     <h5 class="card-title text-center mb-3">Live QR Scanner</h5>
-    
     <div id="reader" class="mb-3"></div>
     <div class="text-center my-3"><strong>OR</strong></div>
-    
     <div class="input-group mb-3">
       <input type="text" id="manualInput" class="form-control" placeholder="e.g. 26M-1234">
       <button class="btn btn-primary" onclick="processStudentInput()">Search</button>
     </div>
-    
     <div id="loading" class="text-center text-secondary" style="display: none;">
       <div class="spinner-border spinner-border-sm" role="status"></div> Processing...
     </div>
@@ -44,23 +41,31 @@
             <p class="mb-1"><strong>Roll No:</strong> <span id="sRoll"></span></p>
             <p class="mb-1"><strong>Outstanding Fines:</strong> PKR <span id="sFines" class="text-danger fw-bold"></span></p>
         </div>
-        <div>
-            <span id="sStatus" class="badge"></span>
+        <div class="text-end">
+            <span id="sStatus" class="badge mb-2 d-block"></span>
+            <button id="payFineBtn" class="btn btn-sm btn-outline-danger" style="display:none;" onclick="payFines()">Clear Fines</button>
         </div>
     </div>
+    
+    <div id="blockWarning" class="alert alert-danger mt-2" style="display:none; padding: 8px; font-size: 0.9rem;">
+      <strong>Restricted!</strong> Clear fines or unblock account to issue new items.
+    </div>
+
     <hr>
     <div class="d-flex justify-content-around mt-2">
-      <button class="btn btn-success" onclick="showIssueSection()">Issue Items</button>
+      <button class="btn btn-success" id="issueNavBtn" onclick="showIssueSection()">Issue Items</button>
       <button class="btn btn-warning" onclick="showReturnSection()">Return Items</button>
     </div>
   </div>
 
   <div id="issueSection" class="card p-3 action-section">
     <h5 class="mb-3 text-center">Checkout Cart</h5>
+    <div id="stockWarning" class="alert alert-warning" style="display:none; padding: 8px; font-size: 0.8rem;"></div>
+    
     <div class="row g-2 mb-3">
       <div class="col-8">
         <label class="form-label mb-1">Select Item:</label>
-        <input class="form-control" list="inventoryList" id="selectedItem" placeholder="Search item...">
+        <input class="form-control" list="inventoryList" id="selectedItem" placeholder="Search item..." onchange="checkStockWarning()">
         <datalist id="inventoryList"></datalist>
       </div>
       <div class="col-4">
@@ -78,23 +83,13 @@
 
   <div id="returnSection" class="card p-3 action-section">
     <h5 class="mb-3 text-center">Items Pending Return</h5>
-    
     <div id="noItemsMsg" class="alert alert-success" style="display: none;">This student has no open items!</div>
-    
     <div class="table-responsive">
       <table class="table table-bordered table-sm" id="returnTable" style="display: none;">
-        <thead class="table-light">
-          <tr>
-            <th>Select</th>
-            <th>Item</th>
-            <th>Condition</th>
-            <th>Fine (PKR)</th>
-          </tr>
-        </thead>
+        <thead class="table-light"><tr><th>Select</th><th>Item</th><th>Condition</th><th>Fine (PKR)</th></tr></thead>
         <tbody id="returnBody"></tbody>
       </table>
     </div>
-    
     <button class="btn btn-warning w-100 mt-2" id="processReturnBtn" style="display: none;" onclick="submitReturns()">Process Returns</button>
   </div>
 
@@ -107,6 +102,7 @@
   let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} });
   let cart = []; 
   let openTransactions = [];
+  let globalInventory = []; // Stores detailed inventory
 
   function onScanSuccess(decodedText) {
     html5QrcodeScanner.pause(true); 
@@ -130,57 +126,108 @@
         document.getElementById("loading").style.display = "none";
         if (data.error) return alert(data.error);
 
+        let fines = parseInt(data.fines) || 0;
+        
         document.getElementById("sName").innerText = data.name;
         document.getElementById("sRoll").innerText = data.rollNo;
-        document.getElementById("sFines").innerText = data.fines || "0";
+        document.getElementById("sFines").innerText = fines;
         document.getElementById("sStatus").innerText = data.accountStatus;
         document.getElementById("sStatus").className = data.accountStatus === "Active" ? "badge bg-success" : "badge bg-danger";
-        document.getElementById("studentProfile").style.display = "block";
         
+        // 1. FINE PAYMENT BUTTON LOGIC
+        document.getElementById("payFineBtn").style.display = fines > 0 ? "inline-block" : "none";
+
+        // 2. BLOCKING LOGIC
+        if (data.accountStatus !== "Active" || fines > 0) {
+          document.getElementById("issueNavBtn").disabled = true;
+          document.getElementById("blockWarning").style.display = "block";
+        } else {
+          document.getElementById("issueNavBtn").disabled = false;
+          document.getElementById("blockWarning").style.display = "none";
+        }
+
+        document.getElementById("studentProfile").style.display = "block";
         if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) setTimeout(() => html5QrcodeScanner.resume(), 3000);
       }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Database Error."); });
   }
 
-  // --- ISSUE LOGIC (Same as before) ---
+  function payFines() {
+    if(!confirm("Are you sure you want to clear this student's fines? Did you receive the cash?")) return;
+    document.getElementById("loading").style.display = "block";
+    const rollNo = document.getElementById("sRoll").innerText;
+
+    fetch(APPS_SCRIPT_URL + "?action=payFine&rollNo=" + encodeURIComponent(rollNo))
+      .then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          alert("Fines cleared successfully!");
+          processStudentInput(); // Refresh profile
+        }
+      });
+  }
+
   function showIssueSection() {
     document.getElementById("issueSection").style.display = "block";
     document.getElementById("returnSection").style.display = "none";
     document.getElementById("loading").style.display = "block";
     cart = []; renderCart();
+    document.getElementById("stockWarning").style.display = "none";
+
     fetch(APPS_SCRIPT_URL + "?action=getInventory")
       .then(res => res.json())
       .then(data => {
         document.getElementById("loading").style.display = "none";
         if (data.success && data.items) {
+          globalInventory = data.items;
           const datalist = document.getElementById("inventoryList"); datalist.innerHTML = ""; 
-          data.items.forEach(item => { let option = document.createElement("option"); option.value = item; datalist.appendChild(option); });
+          data.items.forEach(item => { let option = document.createElement("option"); option.value = item.name; datalist.appendChild(option); });
         }
       });
   }
+
+  function checkStockWarning() {
+    const itemName = document.getElementById("selectedItem").value;
+    const itemData = globalInventory.find(i => i.name === itemName);
+    const warningBox = document.getElementById("stockWarning");
+    
+    // 3. LOW STOCK ALERT LOGIC
+    if (itemData && itemData.available <= itemData.threshold) {
+      warningBox.innerText = `Low Stock Alert: Only ${itemData.available} ${itemName} left in inventory!`;
+      warningBox.style.display = "block";
+    } else {
+      warningBox.style.display = "none";
+    }
+  }
+
   function addToCart() {
     const itemName = document.getElementById("selectedItem").value.trim();
     const qty = parseInt(document.getElementById("selectedQty").value);
     if (!itemName || qty < 1) return alert("Invalid item/qty");
     const existing = cart.findIndex(i => i.itemName === itemName);
     if (existing > -1) cart[existing].qty += qty; else cart.push({ itemName, qty });
-    document.getElementById("selectedItem").value = ""; document.getElementById("selectedQty").value = "1"; renderCart();
+    document.getElementById("selectedItem").value = ""; document.getElementById("selectedQty").value = "1"; 
+    document.getElementById("stockWarning").style.display = "none";
+    renderCart();
   }
+  
   function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
+  
   function renderCart() {
     const tbody = document.getElementById("cartBody"); tbody.innerHTML = "";
     if (cart.length === 0) { document.getElementById("cartTable").style.display = "none"; document.getElementById("checkoutBtn").style.display = "none"; return; }
     cart.forEach((item, index) => { tbody.innerHTML += `<tr><td>${item.itemName}</td><td>${item.qty}</td><td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">X</button></td></tr>`; });
     document.getElementById("cartTable").style.display = "table"; document.getElementById("checkoutBtn").style.display = "block";
   }
+
   function submitCheckout() {
     if (cart.length === 0) return;
     document.getElementById("loading").style.display = "block";
     fetch(APPS_SCRIPT_URL + "?action=issueItems&rollNo=" + encodeURIComponent(document.getElementById("sRoll").innerText) + "&cartData=" + encodeURIComponent(JSON.stringify(cart)))
       .then(res => res.json())
-      .then(data => { document.getElementById("loading").style.display = "none"; if (data.success) { alert("Issued!"); document.getElementById("issueSection").style.display = "none"; } else alert(data.message); });
+      .then(data => { document.getElementById("loading").style.display = "none"; if (data.success) { alert(data.message); document.getElementById("issueSection").style.display = "none"; } else alert(data.message); });
   }
 
-  // --- RETURN LOGIC ---
+  // --- RETURN LOGIC (Kept exactly the same) ---
   function showReturnSection() {
     document.getElementById("returnSection").style.display = "block";
     document.getElementById("issueSection").style.display = "none";
@@ -197,36 +244,15 @@
   }
 
   function renderReturnTable() {
-    const tbody = document.getElementById("returnBody");
-    tbody.innerHTML = "";
-    
-    if (openTransactions.length === 0) {
-      document.getElementById("noItemsMsg").style.display = "block";
-      document.getElementById("returnTable").style.display = "none";
-      document.getElementById("processReturnBtn").style.display = "none";
-      return;
-    }
-
-    document.getElementById("noItemsMsg").style.display = "none";
-    document.getElementById("returnTable").style.display = "table";
-    document.getElementById("processReturnBtn").style.display = "block";
-
+    const tbody = document.getElementById("returnBody"); tbody.innerHTML = "";
+    if (openTransactions.length === 0) { document.getElementById("noItemsMsg").style.display = "block"; document.getElementById("returnTable").style.display = "none"; document.getElementById("processReturnBtn").style.display = "none"; return; }
+    document.getElementById("noItemsMsg").style.display = "none"; document.getElementById("returnTable").style.display = "table"; document.getElementById("processReturnBtn").style.display = "block";
     openTransactions.forEach((item, index) => {
       let tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td><input class="form-check-input return-checkbox" type="checkbox" data-index="${index}"></td>
-        <td>${item.itemName} (Qty: ${item.qty})</td>
-        <td>
-          <select class="form-select form-select-sm return-condition" id="cond_${index}" onchange="toggleFineInput(${index})">
-            <option value="Good">Good</option>
-            <option value="Consumed">Consumed</option>
-            <option value="Damaged">Damaged</option>
-          </select>
-        </td>
-        <td>
-          <input type="number" class="form-control form-control-sm" id="fine_${index}" placeholder="PKR 0" style="display:none;" min="0">
-        </td>
-      `;
+      tr.innerHTML = `<td><input class="form-check-input return-checkbox" type="checkbox" data-index="${index}"></td>
+        <td>${item.itemName} (Qty: ${item.qty})<br><small class="text-muted">Due: ${item.dueDate}</small></td>
+        <td><select class="form-select form-select-sm return-condition" id="cond_${index}" onchange="toggleFineInput(${index})"><option value="Good">Good</option><option value="Consumed">Consumed</option><option value="Damaged">Damaged</option></select></td>
+        <td><input type="number" class="form-control form-control-sm" id="fine_${index}" placeholder="PKR 0" style="display:none;" min="0"></td>`;
       tbody.appendChild(tr);
     });
   }
@@ -234,58 +260,25 @@
   function toggleFineInput(index) {
     const condition = document.getElementById(`cond_${index}`).value;
     const fineInput = document.getElementById(`fine_${index}`);
-    if (condition === "Damaged") {
-      fineInput.style.display = "block";
-    } else {
-      fineInput.style.display = "none";
-      fineInput.value = "";
-    }
+    if (condition === "Damaged") { fineInput.style.display = "block"; } else { fineInput.style.display = "none"; fineInput.value = ""; }
   }
 
   function submitReturns() {
     const checkboxes = document.querySelectorAll('.return-checkbox:checked');
     if (checkboxes.length === 0) return alert("Please select at least one item to return.");
-
-    let returnsToProcess = [];
-    let validationPassed = true;
-
+    let returnsToProcess = [], validationPassed = true;
     checkboxes.forEach(cb => {
-      let index = cb.getAttribute('data-index');
-      let item = openTransactions[index];
-      let condition = document.getElementById(`cond_${index}`).value;
-      let fineAmount = document.getElementById(`fine_${index}`).value;
-
-      if (condition === "Damaged" && (!fineAmount || fineAmount <= 0)) {
-        validationPassed = false;
-        alert(`Please enter a fine amount for the damaged ${item.itemName}.`);
-      }
-
-      returnsToProcess.push({
-        transactionId: item.transactionId,
-        itemId: item.itemId,
-        qty: item.qty,
-        condition: condition,
-        fineAmount: fineAmount || 0
-      });
+      let index = cb.getAttribute('data-index'); let item = openTransactions[index]; let condition = document.getElementById(`cond_${index}`).value; let fineAmount = document.getElementById(`fine_${index}`).value;
+      if (condition === "Damaged" && (!fineAmount || fineAmount <= 0)) { validationPassed = false; alert(`Please enter a fine amount for the damaged ${item.itemName}.`); }
+      returnsToProcess.push({ transactionId: item.transactionId, itemId: item.itemId, qty: item.qty, condition: condition, fineAmount: fineAmount || 0 });
     });
-
     if (!validationPassed) return;
-
     document.getElementById("loading").style.display = "block";
     const rollNo = document.getElementById("sRoll").innerText;
-
     fetch(APPS_SCRIPT_URL + "?action=processReturns&rollNo=" + encodeURIComponent(rollNo) + "&returnData=" + encodeURIComponent(JSON.stringify(returnsToProcess)))
       .then(res => res.json())
-      .then(data => {
-        document.getElementById("loading").style.display = "none";
-        if (data.success) {
-          alert("Returns processed and fines updated (if applicable)!");
-          // Refresh the returns table and student fine profile
-          processStudentInput(); 
-        } else {
-          alert("Error: " + data.message);
-        }
-      }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Failed to process return."); });
+      .then(data => { document.getElementById("loading").style.display = "none"; if (data.success) { alert("Returns processed!"); processStudentInput(); } else { alert("Error: " + data.message); } })
+      .catch(err => { document.getElementById("loading").style.display = "none"; alert("Failed to process return."); });
   }
 </script>
 </body>
