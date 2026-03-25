@@ -9,7 +9,8 @@
   <style>
     body { background-color: #f4f7f6; padding-top: 20px; }
     .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .student-info { display: none; background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .student-info, .issue-section { display: none; background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .issue-section { background-color: #f8f9fa; border: 1px solid #dee2e6; }
     #reader { width: 100%; max-width: 400px; margin: 0 auto; overflow: hidden; border-radius: 8px; border: 2px solid #0d6efd; }
   </style>
 </head>
@@ -22,16 +23,15 @@
     <h5 class="card-title text-center mb-3">Live QR Scanner</h5>
     
     <div id="reader" class="mb-3"></div>
-    
     <div class="text-center my-3"><strong>OR</strong></div>
     
     <div class="input-group mb-3">
       <input type="text" id="manualInput" class="form-control" placeholder="e.g. 26M-1234">
-      <button class="btn btn-primary" onclick="processInput()">Search</button>
+      <button class="btn btn-primary" onclick="processStudentInput()">Search</button>
     </div>
     
     <div id="loading" class="text-center text-secondary" style="display: none;">
-      <div class="spinner-border spinner-border-sm" role="status"></div> Fetching from Database...
+      <div class="spinner-border spinner-border-sm" role="status"></div> Processing...
     </div>
   </div>
 
@@ -39,79 +39,121 @@
     <h5 class="text-success mb-3">Student Profile Found</h5>
     <p><strong>Name:</strong> <span id="sName"></span></p>
     <p><strong>Roll No:</strong> <span id="sRoll"></span></p>
-    <p><strong>Email:</strong> <span id="sEmail"></span></p>
     <p><strong>Account Status:</strong> <span id="sStatus" class="badge"></span></p>
     <hr>
     <div class="d-flex justify-content-around mt-3">
-      <button class="btn btn-success" onclick="alert('Issue Item logic coming next!')">Issue Item</button>
-      <button class="btn btn-warning" onclick="alert('Return Item logic coming next!')">Return Item</button>
+      <button class="btn btn-success" onclick="showIssueSection()">Issue Item</button>
+      <button class="btn btn-warning" onclick="alert('Return coming next!')">Return Item</button>
     </div>
+  </div>
+
+  <div id="issueSection" class="card p-3 issue-section">
+    <h5 class="mb-3">Issue Equipment</h5>
+    <label class="form-label">Search and Select Item:</label>
+    
+    <input class="form-control mb-3" list="inventoryList" id="selectedItem" placeholder="Type to search items...">
+    <datalist id="inventoryList">
+      </datalist>
+    
+    <button class="btn btn-primary w-100" onclick="submitIssue()">Confirm Checkout</button>
   </div>
 </div>
 
 <script>
-  // PASTE YOUR APPS SCRIPT WEB APP URL BETWEEN THE QUOTES BELOW:
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2dOuheToKqt3CjGcqmKkU-_g1MrchV_QRxyg-DeI_kYRsWWlzPxaSqF_S4BT7A264_Q/exec";
+  // PASTE YOUR APPS SCRIPT WEB APP URL HERE
+  const APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 
-  // 1. Initialize Live Scanner
   let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} });
   
-  function onScanSuccess(decodedText, decodedResult) {
-    // Pause scanner so it doesn't scan the same code 100 times
+  function onScanSuccess(decodedText) {
     html5QrcodeScanner.pause(true); 
     document.getElementById("manualInput").value = decodedText;
-    processInput();
+    processStudentInput();
   }
-  
   html5QrcodeScanner.render(onScanSuccess);
 
-  // 2. Fetch Data from Google Sheets API
-  function processInput() {
+  // 1. Fetch Student
+  function processStudentInput() {
     const qrData = document.getElementById("manualInput").value.trim();
-    if (!qrData) {
-      alert("Please enter or scan a roll number.");
-      return;
-    }
+    if (!qrData) return alert("Please enter a roll number.");
     
     document.getElementById("loading").style.display = "block";
     document.getElementById("studentProfile").style.display = "none";
+    document.getElementById("issueSection").style.display = "none";
 
-    // Call the Google Apps Script Backend
-    fetch(APPS_SCRIPT_URL + "?qrData=" + encodeURIComponent(qrData))
-      .then(response => response.json())
+    fetch(APPS_SCRIPT_URL + "?action=getStudent&qrData=" + encodeURIComponent(qrData))
+      .then(res => res.json())
       .then(data => {
-        updateUI(data);
+        document.getElementById("loading").style.display = "none";
+        if (data.error) return alert(data.error);
+
+        document.getElementById("sName").innerText = data.name;
+        document.getElementById("sRoll").innerText = data.rollNo;
+        document.getElementById("sStatus").innerText = data.accountStatus;
+        document.getElementById("sStatus").className = data.accountStatus === "Active" ? "badge bg-success" : "badge bg-danger";
+        document.getElementById("studentProfile").style.display = "block";
+        
         if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) {
-            setTimeout(() => html5QrcodeScanner.resume(), 3000); // Resume scanner after 3 secs
+            setTimeout(() => html5QrcodeScanner.resume(), 3000);
         }
       })
-      .catch(error => {
+      .catch(err => {
         document.getElementById("loading").style.display = "none";
-        alert("Database Error. Check console or URL.");
-        console.error(error);
+        alert("Database Error.");
       });
   }
 
-  // 3. Update the Screen
-  function updateUI(studentData) {
-    document.getElementById("loading").style.display = "none";
+  // 2. Show Issue Section & Fetch Inventory
+  function showIssueSection() {
+    document.getElementById("issueSection").style.display = "block";
+    document.getElementById("loading").style.display = "block";
     
-    if (studentData.error) {
-      alert(studentData.error);
-      return;
-    }
+    // Fetch available inventory items to populate the dropdown
+    fetch(APPS_SCRIPT_URL + "?action=getInventory")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("loading").style.display = "none";
+        if (data.success && data.items) {
+          const datalist = document.getElementById("inventoryList");
+          datalist.innerHTML = ""; // Clear old list
+          data.items.forEach(item => {
+            let option = document.createElement("option");
+            option.value = item;
+            datalist.appendChild(option);
+          });
+        }
+      })
+      .catch(err => {
+        document.getElementById("loading").style.display = "none";
+        alert("Failed to load inventory.");
+      });
+  }
 
-    document.getElementById("sName").innerText = studentData.name;
-    document.getElementById("sRoll").innerText = studentData.rollNo;
-    document.getElementById("sEmail").innerText = studentData.email;
+  // 3. Submit the Issue Request
+  function submitIssue() {
+    const rollNo = document.getElementById("sRoll").innerText;
+    const itemName = document.getElementById("selectedItem").value.trim();
     
-    const statusBadge = document.getElementById("sStatus");
-    statusBadge.innerText = studentData.accountStatus;
-    statusBadge.className = studentData.accountStatus === "Active" ? "badge bg-success" : "badge bg-danger";
+    if (!itemName) return alert("Please select an item to issue.");
+    
+    document.getElementById("loading").style.display = "block";
 
-    document.getElementById("studentProfile").style.display = "block";
-    
-    if(!studentData.found) alert(studentData.message);
+    fetch(APPS_SCRIPT_URL + "?action=issueItem&rollNo=" + encodeURIComponent(rollNo) + "&itemName=" + encodeURIComponent(itemName))
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("loading").style.display = "none";
+        if (data.success) {
+          alert("Success! " + data.message);
+          document.getElementById("issueSection").style.display = "none";
+          document.getElementById("selectedItem").value = ""; // Clear input
+        } else {
+          alert("Error: " + data.message);
+        }
+      })
+      .catch(err => {
+        document.getElementById("loading").style.display = "none";
+        alert("Failed to issue item.");
+      });
   }
 </script>
 </body>
