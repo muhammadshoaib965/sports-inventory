@@ -12,6 +12,7 @@
     .student-info, .issue-section { display: none; background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; }
     .issue-section { background-color: #f8f9fa; border: 1px solid #dee2e6; }
     #reader { width: 100%; max-width: 400px; margin: 0 auto; overflow: hidden; border-radius: 8px; border: 2px solid #0d6efd; }
+    .cart-table th, .cart-table td { padding: 8px; text-align: center; }
   </style>
 </head>
 <body>
@@ -42,29 +43,50 @@
     <p><strong>Account Status:</strong> <span id="sStatus" class="badge"></span></p>
     <hr>
     <div class="d-flex justify-content-around mt-3">
-      <button class="btn btn-success" onclick="showIssueSection()">Issue Item</button>
-      <button class="btn btn-warning" onclick="alert('Return coming next!')">Return Item</button>
+      <button class="btn btn-success" onclick="showIssueSection()">Issue Items</button>
+      <button class="btn btn-warning" onclick="alert('Return coming next!')">Return Items</button>
     </div>
   </div>
 
   <div id="issueSection" class="card p-3 issue-section">
-    <h5 class="mb-3">Issue Equipment</h5>
-    <label class="form-label">Search and Select Item:</label>
+    <h5 class="mb-3 text-center">Checkout Cart</h5>
     
-    <input class="form-control mb-3" list="inventoryList" id="selectedItem" placeholder="Type to search items...">
-    <datalist id="inventoryList">
-      </datalist>
+    <div class="row g-2 mb-3">
+      <div class="col-8">
+        <label class="form-label mb-1">Select Item:</label>
+        <input class="form-control" list="inventoryList" id="selectedItem" placeholder="Search item...">
+        <datalist id="inventoryList"></datalist>
+      </div>
+      <div class="col-4">
+        <label class="form-label mb-1">Qty:</label>
+        <input type="number" class="form-control" id="selectedQty" value="1" min="1">
+      </div>
+    </div>
     
-    <button class="btn btn-primary w-100" onclick="submitIssue()">Confirm Checkout</button>
+    <button class="btn btn-outline-primary w-100 mb-3" onclick="addToCart()">+ Add to List</button>
+
+    <table class="table table-bordered table-sm cart-table" id="cartTable" style="display: none;">
+      <thead class="table-light">
+        <tr>
+          <th>Item</th>
+          <th>Qty</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="cartBody"></tbody>
+    </table>
+    
+    <button class="btn btn-success w-100 mt-2" id="checkoutBtn" style="display: none;" onclick="submitCheckout()">Confirm Checkout</button>
   </div>
 </div>
 
 <script>
   // PASTE YOUR APPS SCRIPT WEB APP URL HERE
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2dOuheToKqt3CjGcqmKkU-_g1MrchV_QRxyg-DeI_kYRsWWlzPxaSqF_S4BT7A264_Q/exec";
+  const APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 
   let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} });
-  
+  let cart = []; // Array to hold multiple items
+
   function onScanSuccess(decodedText) {
     html5QrcodeScanner.pause(true); 
     document.getElementById("manualInput").value = decodedText;
@@ -96,8 +118,7 @@
         if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) {
             setTimeout(() => html5QrcodeScanner.resume(), 3000);
         }
-      })
-      .catch(err => {
+      }).catch(err => {
         document.getElementById("loading").style.display = "none";
         alert("Database Error.");
       });
@@ -107,52 +128,103 @@
   function showIssueSection() {
     document.getElementById("issueSection").style.display = "block";
     document.getElementById("loading").style.display = "block";
+    cart = []; // Reset cart
+    renderCart();
     
-    // Fetch available inventory items to populate the dropdown
     fetch(APPS_SCRIPT_URL + "?action=getInventory")
       .then(res => res.json())
       .then(data => {
         document.getElementById("loading").style.display = "none";
         if (data.success && data.items) {
           const datalist = document.getElementById("inventoryList");
-          datalist.innerHTML = ""; // Clear old list
+          datalist.innerHTML = ""; 
           data.items.forEach(item => {
             let option = document.createElement("option");
             option.value = item;
             datalist.appendChild(option);
           });
         }
-      })
-      .catch(err => {
+      }).catch(err => {
         document.getElementById("loading").style.display = "none";
         alert("Failed to load inventory.");
       });
   }
 
-  // 3. Submit the Issue Request
-  function submitIssue() {
-    const rollNo = document.getElementById("sRoll").innerText;
+  // 3. Add to Cart Logic
+  function addToCart() {
     const itemName = document.getElementById("selectedItem").value.trim();
+    const qty = parseInt(document.getElementById("selectedQty").value);
+
+    if (!itemName || qty < 1) return alert("Please select a valid item and quantity.");
+
+    // Check if item is already in cart, if so, just increase quantity
+    const existingItemIndex = cart.findIndex(item => item.itemName === itemName);
+    if (existingItemIndex > -1) {
+      cart[existingItemIndex].qty += qty;
+    } else {
+      cart.push({ itemName: itemName, qty: qty });
+    }
+
+    // Reset inputs
+    document.getElementById("selectedItem").value = "";
+    document.getElementById("selectedQty").value = "1";
+    renderCart();
+  }
+
+  function removeFromCart(index) {
+    cart.splice(index, 1);
+    renderCart();
+  }
+
+  function renderCart() {
+    const tbody = document.getElementById("cartBody");
+    tbody.innerHTML = "";
     
-    if (!itemName) return alert("Please select an item to issue.");
+    if (cart.length === 0) {
+      document.getElementById("cartTable").style.display = "none";
+      document.getElementById("checkoutBtn").style.display = "none";
+      return;
+    }
+
+    cart.forEach((item, index) => {
+      let tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.itemName}</td>
+        <td>${item.qty}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">X</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("cartTable").style.display = "table";
+    document.getElementById("checkoutBtn").style.display = "block";
+  }
+
+  // 4. Submit the Entire Cart
+  function submitCheckout() {
+    if (cart.length === 0) return alert("Cart is empty.");
     
+    const rollNo = document.getElementById("sRoll").innerText;
     document.getElementById("loading").style.display = "block";
 
-    fetch(APPS_SCRIPT_URL + "?action=issueItem&rollNo=" + encodeURIComponent(rollNo) + "&itemName=" + encodeURIComponent(itemName))
+    // Convert the cart array to a JSON string
+    const cartDataString = JSON.stringify(cart);
+
+    fetch(APPS_SCRIPT_URL + "?action=issueItems&rollNo=" + encodeURIComponent(rollNo) + "&cartData=" + encodeURIComponent(cartDataString))
       .then(res => res.json())
       .then(data => {
         document.getElementById("loading").style.display = "none";
         if (data.success) {
           alert("Success! " + data.message);
           document.getElementById("issueSection").style.display = "none";
-          document.getElementById("selectedItem").value = ""; // Clear input
+          cart = []; // clear cart
         } else {
           alert("Error: " + data.message);
         }
       })
       .catch(err => {
         document.getElementById("loading").style.display = "none";
-        alert("Failed to issue item.");
+        alert("Failed to issue items.");
       });
   }
 </script>
