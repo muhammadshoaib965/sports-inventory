@@ -9,10 +9,10 @@
   <style>
     body { background-color: #f4f7f6; padding-top: 20px; }
     .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .student-info, .issue-section { display: none; background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; }
-    .issue-section { background-color: #f8f9fa; border: 1px solid #dee2e6; }
+    .student-info, .action-section { display: none; background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .action-section { background-color: #f8f9fa; border: 1px solid #dee2e6; }
     #reader { width: 100%; max-width: 400px; margin: 0 auto; overflow: hidden; border-radius: 8px; border: 2px solid #0d6efd; }
-    .cart-table th, .cart-table td { padding: 8px; text-align: center; }
+    .table th, .table td { vertical-align: middle; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -37,20 +37,26 @@
   </div>
 
   <div id="studentProfile" class="card p-3 student-info text-start">
-    <h5 class="text-success mb-3">Student Profile Found</h5>
-    <p><strong>Name:</strong> <span id="sName"></span></p>
-    <p><strong>Roll No:</strong> <span id="sRoll"></span></p>
-    <p><strong>Account Status:</strong> <span id="sStatus" class="badge"></span></p>
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h5 class="text-success mb-2">Student Profile Found</h5>
+            <p class="mb-1"><strong>Name:</strong> <span id="sName"></span></p>
+            <p class="mb-1"><strong>Roll No:</strong> <span id="sRoll"></span></p>
+            <p class="mb-1"><strong>Outstanding Fines:</strong> PKR <span id="sFines" class="text-danger fw-bold"></span></p>
+        </div>
+        <div>
+            <span id="sStatus" class="badge"></span>
+        </div>
+    </div>
     <hr>
-    <div class="d-flex justify-content-around mt-3">
+    <div class="d-flex justify-content-around mt-2">
       <button class="btn btn-success" onclick="showIssueSection()">Issue Items</button>
-      <button class="btn btn-warning" onclick="alert('Return coming next!')">Return Items</button>
+      <button class="btn btn-warning" onclick="showReturnSection()">Return Items</button>
     </div>
   </div>
 
-  <div id="issueSection" class="card p-3 issue-section">
+  <div id="issueSection" class="card p-3 action-section">
     <h5 class="mb-3 text-center">Checkout Cart</h5>
-    
     <div class="row g-2 mb-3">
       <div class="col-8">
         <label class="form-label mb-1">Select Item:</label>
@@ -62,22 +68,36 @@
         <input type="number" class="form-control" id="selectedQty" value="1" min="1">
       </div>
     </div>
-    
     <button class="btn btn-outline-primary w-100 mb-3" onclick="addToCart()">+ Add to List</button>
-
-    <table class="table table-bordered table-sm cart-table" id="cartTable" style="display: none;">
-      <thead class="table-light">
-        <tr>
-          <th>Item</th>
-          <th>Qty</th>
-          <th>Action</th>
-        </tr>
-      </thead>
+    <table class="table table-bordered table-sm" id="cartTable" style="display: none;">
+      <thead class="table-light"><tr><th>Item</th><th>Qty</th><th>Action</th></tr></thead>
       <tbody id="cartBody"></tbody>
     </table>
-    
     <button class="btn btn-success w-100 mt-2" id="checkoutBtn" style="display: none;" onclick="submitCheckout()">Confirm Checkout</button>
   </div>
+
+  <div id="returnSection" class="card p-3 action-section">
+    <h5 class="mb-3 text-center">Items Pending Return</h5>
+    
+    <div id="noItemsMsg" class="alert alert-success" style="display: none;">This student has no open items!</div>
+    
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm" id="returnTable" style="display: none;">
+        <thead class="table-light">
+          <tr>
+            <th>Select</th>
+            <th>Item</th>
+            <th>Condition</th>
+            <th>Fine (PKR)</th>
+          </tr>
+        </thead>
+        <tbody id="returnBody"></tbody>
+      </table>
+    </div>
+    
+    <button class="btn btn-warning w-100 mt-2" id="processReturnBtn" style="display: none;" onclick="submitReturns()">Process Returns</button>
+  </div>
+
 </div>
 
 <script>
@@ -85,7 +105,8 @@
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2dOuheToKqt3CjGcqmKkU-_g1MrchV_QRxyg-DeI_kYRsWWlzPxaSqF_S4BT7A264_Q/exec";
 
   let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} });
-  let cart = []; // Array to hold multiple items
+  let cart = []; 
+  let openTransactions = [];
 
   function onScanSuccess(decodedText) {
     html5QrcodeScanner.pause(true); 
@@ -94,7 +115,6 @@
   }
   html5QrcodeScanner.render(onScanSuccess);
 
-  // 1. Fetch Student
   function processStudentInput() {
     const qrData = document.getElementById("manualInput").value.trim();
     if (!qrData) return alert("Please enter a roll number.");
@@ -102,6 +122,7 @@
     document.getElementById("loading").style.display = "block";
     document.getElementById("studentProfile").style.display = "none";
     document.getElementById("issueSection").style.display = "none";
+    document.getElementById("returnSection").style.display = "none";
 
     fetch(APPS_SCRIPT_URL + "?action=getStudent&qrData=" + encodeURIComponent(qrData))
       .then(res => res.json())
@@ -111,121 +132,160 @@
 
         document.getElementById("sName").innerText = data.name;
         document.getElementById("sRoll").innerText = data.rollNo;
+        document.getElementById("sFines").innerText = data.fines || "0";
         document.getElementById("sStatus").innerText = data.accountStatus;
         document.getElementById("sStatus").className = data.accountStatus === "Active" ? "badge bg-success" : "badge bg-danger";
         document.getElementById("studentProfile").style.display = "block";
         
-        if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) {
-            setTimeout(() => html5QrcodeScanner.resume(), 3000);
-        }
-      }).catch(err => {
-        document.getElementById("loading").style.display = "none";
-        alert("Database Error.");
-      });
+        if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) setTimeout(() => html5QrcodeScanner.resume(), 3000);
+      }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Database Error."); });
   }
 
-  // 2. Show Issue Section & Fetch Inventory
+  // --- ISSUE LOGIC (Same as before) ---
   function showIssueSection() {
     document.getElementById("issueSection").style.display = "block";
+    document.getElementById("returnSection").style.display = "none";
     document.getElementById("loading").style.display = "block";
-    cart = []; // Reset cart
-    renderCart();
-    
+    cart = []; renderCart();
     fetch(APPS_SCRIPT_URL + "?action=getInventory")
       .then(res => res.json())
       .then(data => {
         document.getElementById("loading").style.display = "none";
         if (data.success && data.items) {
-          const datalist = document.getElementById("inventoryList");
-          datalist.innerHTML = ""; 
-          data.items.forEach(item => {
-            let option = document.createElement("option");
-            option.value = item;
-            datalist.appendChild(option);
-          });
+          const datalist = document.getElementById("inventoryList"); datalist.innerHTML = ""; 
+          data.items.forEach(item => { let option = document.createElement("option"); option.value = item; datalist.appendChild(option); });
         }
-      }).catch(err => {
-        document.getElementById("loading").style.display = "none";
-        alert("Failed to load inventory.");
       });
   }
-
-  // 3. Add to Cart Logic
   function addToCart() {
     const itemName = document.getElementById("selectedItem").value.trim();
     const qty = parseInt(document.getElementById("selectedQty").value);
-
-    if (!itemName || qty < 1) return alert("Please select a valid item and quantity.");
-
-    // Check if item is already in cart, if so, just increase quantity
-    const existingItemIndex = cart.findIndex(item => item.itemName === itemName);
-    if (existingItemIndex > -1) {
-      cart[existingItemIndex].qty += qty;
-    } else {
-      cart.push({ itemName: itemName, qty: qty });
-    }
-
-    // Reset inputs
-    document.getElementById("selectedItem").value = "";
-    document.getElementById("selectedQty").value = "1";
-    renderCart();
+    if (!itemName || qty < 1) return alert("Invalid item/qty");
+    const existing = cart.findIndex(i => i.itemName === itemName);
+    if (existing > -1) cart[existing].qty += qty; else cart.push({ itemName, qty });
+    document.getElementById("selectedItem").value = ""; document.getElementById("selectedQty").value = "1"; renderCart();
   }
-
-  function removeFromCart(index) {
-    cart.splice(index, 1);
-    renderCart();
-  }
-
+  function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
   function renderCart() {
-    const tbody = document.getElementById("cartBody");
+    const tbody = document.getElementById("cartBody"); tbody.innerHTML = "";
+    if (cart.length === 0) { document.getElementById("cartTable").style.display = "none"; document.getElementById("checkoutBtn").style.display = "none"; return; }
+    cart.forEach((item, index) => { tbody.innerHTML += `<tr><td>${item.itemName}</td><td>${item.qty}</td><td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">X</button></td></tr>`; });
+    document.getElementById("cartTable").style.display = "table"; document.getElementById("checkoutBtn").style.display = "block";
+  }
+  function submitCheckout() {
+    if (cart.length === 0) return;
+    document.getElementById("loading").style.display = "block";
+    fetch(APPS_SCRIPT_URL + "?action=issueItems&rollNo=" + encodeURIComponent(document.getElementById("sRoll").innerText) + "&cartData=" + encodeURIComponent(JSON.stringify(cart)))
+      .then(res => res.json())
+      .then(data => { document.getElementById("loading").style.display = "none"; if (data.success) { alert("Issued!"); document.getElementById("issueSection").style.display = "none"; } else alert(data.message); });
+  }
+
+  // --- RETURN LOGIC ---
+  function showReturnSection() {
+    document.getElementById("returnSection").style.display = "block";
+    document.getElementById("issueSection").style.display = "none";
+    document.getElementById("loading").style.display = "block";
+    const rollNo = document.getElementById("sRoll").innerText;
+
+    fetch(APPS_SCRIPT_URL + "?action=getOpenTransactions&rollNo=" + encodeURIComponent(rollNo))
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("loading").style.display = "none";
+        openTransactions = data.items || [];
+        renderReturnTable();
+      }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Error fetching returns."); });
+  }
+
+  function renderReturnTable() {
+    const tbody = document.getElementById("returnBody");
     tbody.innerHTML = "";
     
-    if (cart.length === 0) {
-      document.getElementById("cartTable").style.display = "none";
-      document.getElementById("checkoutBtn").style.display = "none";
+    if (openTransactions.length === 0) {
+      document.getElementById("noItemsMsg").style.display = "block";
+      document.getElementById("returnTable").style.display = "none";
+      document.getElementById("processReturnBtn").style.display = "none";
       return;
     }
 
-    cart.forEach((item, index) => {
+    document.getElementById("noItemsMsg").style.display = "none";
+    document.getElementById("returnTable").style.display = "table";
+    document.getElementById("processReturnBtn").style.display = "block";
+
+    openTransactions.forEach((item, index) => {
       let tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${item.itemName}</td>
-        <td>${item.qty}</td>
-        <td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">X</button></td>
+        <td><input class="form-check-input return-checkbox" type="checkbox" data-index="${index}"></td>
+        <td>${item.itemName} (Qty: ${item.qty})</td>
+        <td>
+          <select class="form-select form-select-sm return-condition" id="cond_${index}" onchange="toggleFineInput(${index})">
+            <option value="Good">Good</option>
+            <option value="Consumed">Consumed</option>
+            <option value="Damaged">Damaged</option>
+          </select>
+        </td>
+        <td>
+          <input type="number" class="form-control form-control-sm" id="fine_${index}" placeholder="PKR 0" style="display:none;" min="0">
+        </td>
       `;
       tbody.appendChild(tr);
     });
-
-    document.getElementById("cartTable").style.display = "table";
-    document.getElementById("checkoutBtn").style.display = "block";
   }
 
-  // 4. Submit the Entire Cart
-  function submitCheckout() {
-    if (cart.length === 0) return alert("Cart is empty.");
-    
-    const rollNo = document.getElementById("sRoll").innerText;
+  function toggleFineInput(index) {
+    const condition = document.getElementById(`cond_${index}`).value;
+    const fineInput = document.getElementById(`fine_${index}`);
+    if (condition === "Damaged") {
+      fineInput.style.display = "block";
+    } else {
+      fineInput.style.display = "none";
+      fineInput.value = "";
+    }
+  }
+
+  function submitReturns() {
+    const checkboxes = document.querySelectorAll('.return-checkbox:checked');
+    if (checkboxes.length === 0) return alert("Please select at least one item to return.");
+
+    let returnsToProcess = [];
+    let validationPassed = true;
+
+    checkboxes.forEach(cb => {
+      let index = cb.getAttribute('data-index');
+      let item = openTransactions[index];
+      let condition = document.getElementById(`cond_${index}`).value;
+      let fineAmount = document.getElementById(`fine_${index}`).value;
+
+      if (condition === "Damaged" && (!fineAmount || fineAmount <= 0)) {
+        validationPassed = false;
+        alert(`Please enter a fine amount for the damaged ${item.itemName}.`);
+      }
+
+      returnsToProcess.push({
+        transactionId: item.transactionId,
+        itemId: item.itemId,
+        qty: item.qty,
+        condition: condition,
+        fineAmount: fineAmount || 0
+      });
+    });
+
+    if (!validationPassed) return;
+
     document.getElementById("loading").style.display = "block";
+    const rollNo = document.getElementById("sRoll").innerText;
 
-    // Convert the cart array to a JSON string
-    const cartDataString = JSON.stringify(cart);
-
-    fetch(APPS_SCRIPT_URL + "?action=issueItems&rollNo=" + encodeURIComponent(rollNo) + "&cartData=" + encodeURIComponent(cartDataString))
+    fetch(APPS_SCRIPT_URL + "?action=processReturns&rollNo=" + encodeURIComponent(rollNo) + "&returnData=" + encodeURIComponent(JSON.stringify(returnsToProcess)))
       .then(res => res.json())
       .then(data => {
         document.getElementById("loading").style.display = "none";
         if (data.success) {
-          alert("Success! " + data.message);
-          document.getElementById("issueSection").style.display = "none";
-          cart = []; // clear cart
+          alert("Returns processed and fines updated (if applicable)!");
+          // Refresh the returns table and student fine profile
+          processStudentInput(); 
         } else {
           alert("Error: " + data.message);
         }
-      })
-      .catch(err => {
-        document.getElementById("loading").style.display = "none";
-        alert("Failed to issue items.");
-      });
+      }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Failed to process return."); });
   }
 </script>
 </body>
