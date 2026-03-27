@@ -98,8 +98,13 @@
         
         <hr>
         <h4>Select Items</h4>
-        <select id="issueItemSelect"></select>
-        <input type="number" id="issueQty" placeholder="Quantity" value="1" min="1">
+        
+        <div style="display: flex; gap: 10px;">
+            <input list="issueItemOptions" id="issueItemSelect" placeholder="🔍 Type to search item..." style="flex: 2;">
+            <datalist id="issueItemOptions"></datalist>
+            <input type="number" id="issueQty" placeholder="Qty" value="1" min="1" style="flex: 1;">
+        </div>
+        
         <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
         
         <ul id="cartList" style="list-style: none; padding: 0;"></ul>
@@ -151,6 +156,7 @@
             </table>
         </div>
     </div>
+
     <div id="restock" class="tab-content">
         <h3>Add or Restock Inventory</h3>
         <select id="restockType" onchange="toggleRestockType()">
@@ -254,7 +260,7 @@
         currentInventoryData = data.items;
         
         let tbody = document.getElementById('inventoryTableBody'); 
-        let s1 = document.getElementById('issueItemSelect'); 
+        let s1 = document.getElementById('issueItemOptions'); // Changed to datalist
         let s2 = document.getElementById('restockItemSelect');
         let s3 = document.getElementById('officeLossItemSelect'); 
         
@@ -263,14 +269,15 @@
         data.items.forEach(item => {
             if(item.available > 0) {
                 tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-                s1.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
+                
+                // Add to searchable datalist
+                s1.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
             }
             s2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
             s3.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
         });
     }
 
-    // NEW ACTIVE ISSUES FUNCTION
     async function loadActiveIssues() {
         let tbody = document.getElementById('activeIssuesTableBody');
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
@@ -428,9 +435,24 @@
         }
     }
 
+    // UPDATED addToCart TO INCLUDE VALIDATION
     function addToCart() {
-        cart.push({ itemName: document.getElementById('issueItemSelect').value, qty: document.getElementById('issueQty').value });
+        let itemName = document.getElementById('issueItemSelect').value;
+        let qty = parseInt(document.getElementById('issueQty').value);
+
+        // Validation check
+        let selectedItem = currentInventoryData.find(i => i.name === itemName);
+        
+        if (!itemName) return alert("Please type or select an item from the list.");
+        if (!selectedItem || selectedItem.available <= 0) return alert("Please select a valid item that is currently in stock.");
+        if (qty > selectedItem.available) return alert(`Not enough stock! Only ${selectedItem.available}x ${itemName} available.`);
+
+        cart.push({ itemName: itemName, qty: qty });
         updateCartUI();
+        
+        // Clear input fields after adding to cart
+        document.getElementById('issueItemSelect').value = '';
+        document.getElementById('issueQty').value = '1';
     }
 
     function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
