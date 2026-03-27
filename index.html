@@ -36,6 +36,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
+        .row-overdue { background-color: #ffeeba; }
     </style>
 </head>
 <body>
@@ -69,7 +70,7 @@
         <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
         <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
         <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
-        <div class="tab-btn admin-only" onclick="switchTab('overdue')">🚨 Overdue</div>
+        <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Issued Items</div>
         <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock/Loss</div>
         <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
     </div>
@@ -127,12 +128,12 @@
         <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
     </div>
 
-    <div id="overdue" class="tab-content">
+    <div id="activeIssues" class="tab-content">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Overdue Students</h3>
-            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadOverdue()">Refresh List</button>
+            <h3 style="margin: 0;">Currently Issued Items</h3>
+            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadActiveIssues()">Refresh List</button>
         </div>
-        <p style="font-size: 14px; color: #666;">Students who have passed their 48-hour return window.</p>
+        <p style="font-size: 14px; color: #666;">All students currently holding items. Overdue items are highlighted.</p>
         <div style="overflow-x: auto;">
             <table style="min-width: 600px;">
                 <thead>
@@ -141,11 +142,11 @@
                         <th>Name</th>
                         <th>Item Issued</th>
                         <th>Due Date</th>
-                        <th>Days Late</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
-                <tbody id="overdueTableBody">
-                    <tr><td colspan="5" style="text-align:center;">Click "Refresh List" to load overdue students.</td></tr>
+                <tbody id="activeIssuesTableBody">
+                    <tr><td colspan="5" style="text-align:center;">Click "Refresh List" to load currently issued items.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -198,11 +199,10 @@
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
-        // keep logout visually distinct
         document.querySelector('.logout-btn').classList.remove('active');
         
         if(tabId === 'dashboard') loadDashboard();
-        if(tabId === 'overdue') loadOverdue(); // ADDED TRIGGER FOR OVERDUE TAB
+        if(tabId === 'activeIssues') loadActiveIssues(); 
     }
 
     async function checkLogin() {
@@ -226,11 +226,10 @@
         }
     }
 
-    // NEW LOGOUT FUNCTION
     function logout() {
         document.getElementById('login-overlay').style.display = 'flex';
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        switchTab('dashboard'); // reset to dashboard view for safety
+        switchTab('dashboard'); 
     }
 
     function enterViewOnly() {
@@ -271,12 +270,12 @@
         });
     }
 
-    // NEW OVERDUE FUNCTION
-    async function loadOverdue() {
-        let tbody = document.getElementById('overdueTableBody');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching overdue list... please wait.</td></tr>';
+    // NEW ACTIVE ISSUES FUNCTION
+    async function loadActiveIssues() {
+        let tbody = document.getElementById('activeIssuesTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
         
-        let data = await callApi('apiGetOverdueStudents');
+        let data = await callApi('apiGetActiveIssues');
         
         if(!data || !data.success) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data. Make sure backend is updated and deployed!</td></tr>';
@@ -284,18 +283,25 @@
         }
         
         tbody.innerHTML = '';
-        if(data.overdueStudents.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:green; padding: 20px;"><b>🎉 Good news! No students currently have overdue items.</b></td></tr>';
+        if(data.activeIssues.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:green; padding: 20px;"><b>🎉 No items are currently issued to anyone.</b></td></tr>';
             return;
         }
         
-        data.overdueStudents.forEach(item => {
-            tbody.innerHTML += `<tr>
+        data.activeIssues.forEach(item => {
+            let statusHtml = item.isOverdue 
+                ? `<b style="color:red;">Overdue (${item.daysLate} Days)</b>` 
+                : `<b style="color:green;">Issued (On Time)</b>`;
+            
+            let rowClass = item.isOverdue ? "row-overdue" : "";
+            let dateStyle = item.isOverdue ? "color:#d9534f; font-weight:bold;" : "";
+
+            tbody.innerHTML += `<tr class="${rowClass}">
                 <td><b>${item.rollNo}</b></td>
                 <td>${item.studentName}</td>
                 <td>${item.qty}x ${item.itemName}</td>
-                <td style="color:#d9534f;">${item.dueDate}</td>
-                <td><b style="color:red;">${item.daysLate} Days</b></td>
+                <td style="${dateStyle}">${item.dueDate}</td>
+                <td>${statusHtml}</td>
             </tr>`;
         });
     }
