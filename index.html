@@ -3,197 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAST Sports - Admin Returns & Losses</title>
+    <title>FAST Sports Management Portal</title>
     <style>
         :root {
             --primary: #1a3b5c; /* FAST University Blue */
             --secondary: #29507a;
-            --accent: #e53935; /* Red for fines/losses */
+            --accent: #e53935;
             --bg: #f4f7f6;
             --text: #333;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        
+        /* Navbar */
+        nav { background-color: var(--primary); padding: 15px; text-align: center; display: none; }
+        nav button { background: none; border: 1px solid white; color: white; padding: 10px 15px; margin: 0 5px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        nav button:hover, nav button.active { background: white; color: var(--primary); }
+        
+        /* Containers */
+        .container { max-width: 900px; margin: 30px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; }
+        .active-section { display: block; }
+        
         h1, h2 { color: var(--primary); text-align: center; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--primary); }
         input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        button { background-color: var(--primary); color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; }
-        button:hover { background-color: var(--secondary); }
-        .btn-danger { background-color: var(--accent); }
-        .btn-danger:hover { background-color: #c62828; }
-        .return-item { background: #f9f9f9; padding: 15px; border-left: 5px solid var(--primary); margin-bottom: 15px; border-radius: 4px; }
+        
+        /* Buttons */
+        .btn-main { background-color: var(--primary); color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        .btn-main:hover { background-color: var(--secondary); }
+        .btn-danger { background-color: var(--accent); color: white; border: none; padding: 12px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-success { background-color: #2e7d32; color: white; border: none; padding: 12px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        
+        /* Tables & Lists */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: var(--primary); color: white; }
+        .item-card { background: #f9f9f9; padding: 15px; border-left: 5px solid var(--primary); margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        
         .row { display: flex; gap: 10px; margin-top: 10px; }
         .row > div { flex: 1; }
-        #loadingMsg { text-align: center; color: var(--primary); font-weight: bold; display: none; margin-top: 10px; }
-        hr { border: 0; height: 1px; background: #eee; margin: 30px 0; }
+        .loading { text-align: center; color: var(--primary); font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
-    <h1>FAST Sports Administration</h1>
-
-    <div class="container">
-        <h2>Process Student Returns</h2>
-        <p style="text-align:center; font-size: 14px; color: #666;">Scan or type the student's Roll Number to process returned items.</p>
-        
+    <div id="loginSection" class="container active-section">
+        <h1>FAST Sports Portal</h1>
+        <h2>Admin Login</h2>
         <div class="form-group">
-            <label for="rollNumber">Student Roll Number (e.g., 21F-1234):</label>
-            <input type="text" id="rollNumber" placeholder="Enter Roll Number...">
+            <label>Username:</label>
+            <input type="text" id="loginUser" placeholder="Admin username">
         </div>
-        <button onclick="fetchOpenTransactions()">Find Open Items</button>
-        <p id="loadingMsg">Loading data from system...</p>
-
-        <div id="openItemsContainer" style="margin-top: 20px;">
-            </div>
-
-        <button id="submitReturnsBtn" style="display:none; margin-top: 20px; background-color: #2e7d32;" onclick="submitReturns()">Process Selected Returns</button>
+        <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="loginPass" placeholder="Admin password">
+        </div>
+        <button class="btn-main" onclick="login()">Login</button>
+        <p id="loginMsg" class="loading">Authenticating...</p>
     </div>
 
-    <div class="container" style="border-top: 5px solid var(--accent);">
-        <h2 style="color: var(--accent);">Mark Office Item Loss</h2>
-        <p style="text-align:center; font-size: 14px; color: #666;">Use this if an item goes missing directly from the sports office (No student fine applied).</p>
-        
+    <nav id="navbar">
+        <button onclick="switchTab('issueSection')">Issue Items</button>
+        <button onclick="switchTab('returnSection')">Returns & Fines</button>
+        <button onclick="switchTab('inventorySection')">Live Inventory</button>
+        <button onclick="switchTab('adminSection')">Restock & Losses</button>
+        <button onclick="location.reload()" style="background:var(--accent); border-color:var(--accent);">Logout</button>
+    </nav>
+
+    <div id="issueSection" class="container">
+        <h2>Issue Sports Equipment</h2>
         <div class="form-group">
-            <label for="lossItemName">Item Name (Exact match from Inventory):</label>
-            <input type="text" id="lossItemName" placeholder="e.g., Cricket Bat">
+            <label>Student Roll No (e.g., 21F-1234):</label>
+            <input type="text" id="issueRollNo">
         </div>
+        <div class="row">
+            <div>
+                <label>Item Name:</label>
+                <input type="text" id="issueItemName" placeholder="e.g., Cricket Bat">
+            </div>
+            <div>
+                <label>Quantity:</label>
+                <input type="number" id="issueQty" value="1" min="1">
+            </div>
+        </div>
+        <button class="btn-main" onclick="addToCart()" style="width: auto; margin-top: 15px;">Add to Cart</button>
+
+        <h3>Current Cart</h3>
+        <div id="cartContainer"></div>
+        <button class="btn-success" id="checkoutBtn" style="display:none;" onclick="submitIssue()">Confirm & Issue Items</button>
+        <p id="issueMsg" class="loading">Processing...</p>
+    </div>
+
+    <div id="returnSection" class="container">
+        <h2>Process Returns & Pay Fines</h2>
         <div class="form-group">
-            <label for="lossQty">Quantity Lost:</label>
-            <input type="number" id="lossQty" min="1" value="1">
+            <label>Student Roll No:</label>
+            <input type="text" id="returnRollNo">
+        </div>
+        <button class="btn-main" onclick="fetchOpenTransactions()">Find Open Items / Fines</button>
+        <p id="returnMsg" class="loading">Fetching data...</p>
+
+        <div id="studentFineDisplay" style="margin-top:20px; color:var(--accent); font-weight:bold; font-size:18px; text-align:center;"></div>
+        
+        <div id="payFineDiv" style="display:none; background:#ffebee; padding:15px; border-radius:5px; margin-top:10px;">
+            <label>Pay Fine Amount (PKR):</label>
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="payFineAmount" min="1" placeholder="Enter amount paid">
+                <button class="btn-success" style="margin:0; width:auto;" onclick="submitFinePayment()">Clear Fine</button>
+            </div>
+        </div>
+
+        <div id="openItemsContainer" style="margin-top: 20px;"></div>
+        <button class="btn-success" id="submitReturnsBtn" style="display:none;" onclick="submitReturns()">Process Selected Returns</button>
+    </div>
+
+    <div id="inventorySection" class="container">
+        <h2>Live Inventory Status</h2>
+        <button class="btn-main" onclick="fetchInventory()">Refresh Inventory</button>
+        <p id="invMsg" class="loading">Loading...</p>
+        <table id="invTable">
+            <thead>
+                <tr>
+                    <th>Item ID</th>
+                    <th>Item Name</th>
+                    <th>Total Owned</th>
+                    <th>Available Now</th>
+                </tr>
+            </thead>
+            <tbody id="invBody"></tbody>
+        </table>
+    </div>
+
+    <div id="adminSection" class="container">
+        <h2>Restock Items</h2>
+        <div class="row">
+            <div>
+                <label>Item Name:</label>
+                <input type="text" id="restockName">
+            </div>
+            <div>
+                <label>Quantity to Add:</label>
+                <input type="number" id="restockQty" value="1" min="1">
+            </div>
+        </div>
+        <label style="margin-top:10px;"><input type="checkbox" id="restockIsNew"> This is a brand new item (not in inventory yet)</label>
+        <button class="btn-success" onclick="restockItem()">Restock / Add Item</button>
+
+        <hr>
+
+        <h2 style="color: var(--accent);">Report Office Loss</h2>
+        <p style="font-size: 14px; color: #666;">Use this if an item goes missing directly from the sports office (No student fine).</p>
+        <div class="row">
+            <div>
+                <label>Item Name:</label>
+                <input type="text" id="lossName">
+            </div>
+            <div>
+                <label>Quantity Lost:</label>
+                <input type="number" id="lossQty" value="1" min="1">
+            </div>
         </div>
         <button class="btn-danger" onclick="markOfficeLoss()">Report Office Loss</button>
     </div>
 
     <script>
-        // ⚠️ REPLACE THIS WITH YOUR NEW "WEB APP URL" FROM APPS SCRIPT
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
-        
-        let currentOpenItems = [];
+        // ⚠️ REPLACE THIS WITH YOUR APPS SCRIPT WEB APP URL
+        const SCRIPT_URL = "YOUR_WEB_APP_URL_HERE"; 
 
-        // --- FETCH STUDENT OPEN ITEMS ---
-        async function fetchOpenTransactions() {
-            const rollNo = document.getElementById('rollNumber').value.trim();
-            if (!rollNo) return alert("Please enter a Roll Number");
+        // --- NAVIGATION & UTILS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.container').forEach(c => c.classList.remove('active-section'));
+            document.getElementById(tabId).classList.add('active-section');
+            if(tabId === 'inventorySection') fetchInventory();
+        }
 
-            document.getElementById('loadingMsg').style.display = "block";
-            document.getElementById('openItemsContainer').innerHTML = "";
-            document.getElementById('submitReturnsBtn').style.display = "none";
+        async function apiCall(params) {
+            const url = SCRIPT_URL + "?" + new URLSearchParams(params).toString();
+            const response = await fetch(url);
+            return await response.json();
+        }
 
+        // --- LOGIN ---
+        async function login() {
+            const user = document.getElementById('loginUser').value;
+            const pass = document.getElementById('loginPass').value;
+            document.getElementById('loginMsg').style.display = "block";
+            
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=apiGetOpenTransactions&rollNo=${rollNo}`);
-                const data = await response.json();
-                
-                document.getElementById('loadingMsg').style.display = "none";
-
-                if (data.success && data.items.length > 0) {
-                    currentOpenItems = data.items;
-                    let html = `<h3>Items currently issued to ${rollNo}:</h3>`;
-                    
-                    data.items.forEach((item, index) => {
-                        html += `
-                        <div class="return-item">
-                            <strong>${item.itemName}</strong> (Qty Issued: ${item.qty}) <br>
-                            <span style="font-size:12px; color:#555;">Transaction ID: ${item.transactionId}</span>
-                            
-                            <div class="row">
-                                <div>
-                                    <label>Return Qty:</label>
-                                    <input type="number" id="retQty_${index}" max="${item.qty}" min="0" value="${item.qty}">
-                                </div>
-                                <div>
-                                    <label>Condition:</label>
-                                    <select id="retCondition_${index}">
-                                        <option value="Good">Good</option>
-                                        <option value="Consumed">Consumed (e.g., Shuttlecock)</option>
-                                        <option value="Damaged">Damaged</option>
-                                        <option value="Lost">Lost by Student</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>Fine Amount (PKR):</label>
-                                    <input type="number" id="retFine_${index}" value="0" min="0">
-                                </div>
-                            </div>
-                        </div>`;
-                    });
-                    
-                    document.getElementById('openItemsContainer').innerHTML = html;
-                    document.getElementById('submitReturnsBtn').style.display = "block";
+                let res = await apiCall({ action: "adminLogin", user: user, pass: pass });
+                document.getElementById('loginMsg').style.display = "none";
+                if(res.success) {
+                    document.getElementById('loginSection').classList.remove('active-section');
+                    document.getElementById('navbar').style.display = "block";
+                    switchTab('issueSection');
                 } else {
-                    document.getElementById('openItemsContainer').innerHTML = `<p style="color:red; text-align:center;">No open transactions found for this student.</p>`;
+                    alert("Invalid Credentials");
                 }
-            } catch (error) {
-                alert("Error connecting to server. Make sure you replaced the SCRIPT_URL.");
-                document.getElementById('loadingMsg').style.display = "none";
+            } catch(e) { alert("Connection Error. Did you set the SCRIPT_URL?"); document.getElementById('loginMsg').style.display = "none"; }
+        }
+
+        // --- INVENTORY ---
+        async function fetchInventory() {
+            document.getElementById('invMsg').style.display = "block";
+            let res = await apiCall({ action: "apiGetInventory" });
+            document.getElementById('invMsg').style.display = "none";
+            
+            if(res.success) {
+                let html = "";
+                res.items.forEach(item => {
+                    html += `<tr><td>${item.id}</td><td>${item.name}</td><td>${item.total}</td><td style="font-weight:bold; color:${item.available > 0 ? 'green' : 'red'}">${item.available}</td></tr>`;
+                });
+                document.getElementById('invBody').innerHTML = html;
             }
         }
 
-        // --- SUBMIT STUDENT RETURNS & FINES ---
+        // --- ISSUING (CART SYSTEM) ---
+        let cart = [];
+        function addToCart() {
+            let name = document.getElementById('issueItemName').value.trim();
+            let qty = document.getElementById('issueQty').value;
+            if(!name || qty < 1) return;
+            cart.push({ itemName: name, qty: qty });
+            renderCart();
+            document.getElementById('issueItemName').value = "";
+            document.getElementById('issueQty').value = "1";
+        }
+
+        function renderCart() {
+            let html = "";
+            cart.forEach((c, i) => {
+                html += `<div class="item-card"><span>${c.qty}x ${c.itemName}</span> <button onclick="cart.splice(${i}, 1); renderCart();" style="background:red; color:white; border:none; padding:5px; border-radius:3px;">X</button></div>`;
+            });
+            document.getElementById('cartContainer').innerHTML = html;
+            document.getElementById('checkoutBtn').style.display = cart.length > 0 ? "block" : "none";
+        }
+
+        async function submitIssue() {
+            let roll = document.getElementById('issueRollNo').value.trim();
+            if(!roll) return alert("Enter Roll Number");
+            document.getElementById('issueMsg').style.display = "block";
+            
+            let res = await apiCall({ action: "apiIssueItems", rollNo: roll, cart: JSON.stringify(cart) });
+            document.getElementById('issueMsg').style.display = "none";
+            
+            if(res.success) { alert("Items Issued!"); cart = []; renderCart(); document.getElementById('issueRollNo').value = ""; }
+            else { alert("Error: " + res.message); }
+        }
+
+        // --- RETURNS & FINES ---
+        let currentOpenItems = [];
+        async function fetchOpenTransactions() {
+            let roll = document.getElementById('returnRollNo').value.trim();
+            if(!roll) return alert("Enter Roll Number");
+            document.getElementById('returnMsg').style.display = "block";
+            
+            // Check Student Data (For existing Fines)
+            let studentRes = await apiCall({ action: "apiGetStudent", rollNo: roll });
+            if(studentRes.found && studentRes.fines > 0) {
+                document.getElementById('studentFineDisplay').innerText = `Current Fine Balance: PKR ${studentRes.fines}`;
+                document.getElementById('payFineDiv').style.display = "block";
+            } else {
+                document.getElementById('studentFineDisplay').innerText = `No outstanding fines.`;
+                document.getElementById('payFineDiv').style.display = "none";
+            }
+
+            // Check Open Items
+            let transRes = await apiCall({ action: "apiGetOpenTransactions", rollNo: roll });
+            document.getElementById('returnMsg').style.display = "none";
+            
+            if(transRes.success && transRes.items.length > 0) {
+                currentOpenItems = transRes.items;
+                let html = "";
+                transRes.items.forEach((item, i) => {
+                    html += `
+                    <div class="item-card" style="display:block;">
+                        <strong>${item.itemName}</strong> (Qty Issued: ${item.qty})
+                        <div class="row">
+                            <div><label>Return Qty:</label><input type="number" id="rQty_${i}" max="${item.qty}" min="0" value="${item.qty}"></div>
+                            <div><label>Condition:</label>
+                                <select id="rCond_${i}">
+                                    <option value="Good">Good</option>
+                                    <option value="Consumed">Consumed</option>
+                                    <option value="Damaged">Damaged</option>
+                                    <option value="Lost">Lost by Student</option>
+                                </select>
+                            </div>
+                            <div><label>Fine (PKR):</label><input type="number" id="rFine_${i}" value="0"></div>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('openItemsContainer').innerHTML = html;
+                document.getElementById('submitReturnsBtn').style.display = "block";
+            } else {
+                document.getElementById('openItemsContainer').innerHTML = "<p>No open items to return.</p>";
+                document.getElementById('submitReturnsBtn').style.display = "none";
+            }
+        }
+
         async function submitReturns() {
-            const rollNo = document.getElementById('rollNumber').value.trim();
+            let roll = document.getElementById('returnRollNo').value.trim();
             let returnsArray = [];
-
-            currentOpenItems.forEach((item, index) => {
-                let rQty = parseInt(document.getElementById(`retQty_${index}`).value);
-                let cond = document.getElementById(`retCondition_${index}`).value;
-                let fine = parseInt(document.getElementById(`retFine_${index}`).value) || 0;
-
-                if (rQty > 0) {
+            currentOpenItems.forEach((item, i) => {
+                let rq = parseInt(document.getElementById(`rQty_${i}`).value);
+                if(rq > 0) {
                     returnsArray.push({
-                        transactionId: item.transactionId,
-                        itemId: item.itemId,
-                        qty: rQty,
-                        condition: cond,
-                        fineAmount: fine
+                        transactionId: item.transactionId, itemId: item.itemId, qty: rq,
+                        condition: document.getElementById(`rCond_${i}`).value,
+                        fineAmount: parseInt(document.getElementById(`rFine_${i}`).value) || 0
                     });
                 }
             });
-
-            if (returnsArray.length === 0) return alert("No items selected to return.");
-
-            document.getElementById('submitReturnsBtn').innerText = "Processing...";
+            if(returnsArray.length === 0) return alert("Nothing to return");
             
-            try {
-                const response = await fetch(`${SCRIPT_URL}?action=apiProcessReturns&rollNo=${rollNo}&returns=${encodeURIComponent(JSON.stringify(returnsArray))}`);
-                const data = await response.json();
-                
-                if(data.success) {
-                    alert("✅ " + data.message);
-                    document.getElementById('openItemsContainer').innerHTML = "";
-                    document.getElementById('submitReturnsBtn').style.display = "none";
-                    document.getElementById('rollNumber').value = "";
-                } else {
-                    alert("❌ Error: " + data.message);
-                }
-            } catch (error) {
-                alert("Error processing returns.");
-            }
+            document.getElementById('submitReturnsBtn').innerText = "Processing...";
+            let res = await apiCall({ action: "apiProcessReturns", rollNo: roll, returns: JSON.stringify(returnsArray) });
             document.getElementById('submitReturnsBtn').innerText = "Process Selected Returns";
+            
+            if(res.success) { alert("Returns processed!"); fetchOpenTransactions(); } 
+            else { alert("Error: " + res.message); }
         }
 
-        // --- MARK OFFICE LOSS (NEW API) ---
+        async function submitFinePayment() {
+            let roll = document.getElementById('returnRollNo').value.trim();
+            let amt = document.getElementById('payFineAmount').value;
+            if(amt <= 0) return alert("Enter valid amount");
+            
+            let res = await apiCall({ action: "apiPayFine", rollNo: roll, amount: amt });
+            if(res.success) { alert("Payment Successful!"); document.getElementById('payFineAmount').value = ""; fetchOpenTransactions(); }
+            else { alert("Error paying fine"); }
+        }
+
+        // --- ADMIN: RESTOCK & LOSSES ---
+        async function restockItem() {
+            let name = document.getElementById('restockName').value;
+            let qty = document.getElementById('restockQty').value;
+            let isNew = document.getElementById('restockIsNew').checked;
+            
+            if(!name || qty < 1) return alert("Fill fields correctly");
+            let res = await apiCall({ action: "restockItem", name: name, qty: qty, isNew: isNew });
+            alert(res.message);
+            if(res.success) { document.getElementById('restockName').value = ""; document.getElementById('restockQty').value = "1"; document.getElementById('restockIsNew').checked = false; }
+        }
+
         async function markOfficeLoss() {
-            const itemName = document.getElementById('lossItemName').value.trim();
-            const qty = document.getElementById('lossQty').value;
-
-            if (!itemName || qty <= 0) return alert("Please enter a valid item name and quantity.");
-
-            if(confirm(`Are you sure you want to mark ${qty}x ${itemName} as lost from the office? This cannot be undone.`)) {
-                try {
-                    const response = await fetch(`${SCRIPT_URL}?action=apiMarkOfficeLoss&itemName=${encodeURIComponent(itemName)}&qty=${qty}`);
-                    const data = await response.json();
-                    
-                    if(data.success) {
-                        alert("✅ " + data.message);
-                        document.getElementById('lossItemName').value = "";
-                        document.getElementById('lossQty').value = "1";
-                    } else {
-                        alert("❌ Error: " + data.message);
-                    }
-                } catch (error) {
-                    alert("Error communicating with server.");
-                }
+            let name = document.getElementById('lossName').value;
+            let qty = document.getElementById('lossQty').value;
+            if(!name || qty < 1) return alert("Fill fields correctly");
+            
+            if(confirm(`Mark ${qty}x ${name} as lost from office?`)) {
+                let res = await apiCall({ action: "apiMarkOfficeLoss", itemName: name, qty: qty });
+                alert(res.message);
+                if(res.success) { document.getElementById('lossName').value = ""; document.getElementById('lossQty').value = "1"; }
             }
         }
     </script>
