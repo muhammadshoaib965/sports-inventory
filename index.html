@@ -23,12 +23,14 @@
         .input-group { display: flex; gap: 10px; align-items: center; }
         .input-group input { margin: 0; }
         .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
+        
         .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
         .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
         .tab-btn.active { background: #003366; color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .admin-only { display: none; }
+        .admin-only { display: none; } /* Only applied to buttons now to prevent display stacking */
+        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -77,7 +79,7 @@
         </table>
     </div>
 
-    <div id="issue" class="tab-content admin-only">
+    <div id="issue" class="tab-content">
         <h3>Issue Equipment</h3>
         <div class="input-group">
             <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
@@ -92,11 +94,11 @@
         <input type="number" id="issueQty" placeholder="Quantity" value="1" min="1">
         <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
         
-        <ul id="cartList"></ul>
+        <ul id="cartList" style="list-style: none; padding: 0;"></ul>
         <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; width:100%; font-size: 18px;">Checkout Now</button>
     </div>
 
-    <div id="return" class="tab-content admin-only">
+    <div id="return" class="tab-content">
         <h3>Return Equipment</h3>
         <div class="input-group">
             <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
@@ -105,13 +107,20 @@
         <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
         <div id="returnStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
         
+        <div id="finePaymentContainer" style="display:none; background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeeba;">
+            <p style="margin: 0 0 5px 0; color: #856404; font-weight: bold;">Log Fine Payment</p>
+            <div class="input-group">
+                <input type="number" id="finePayAmount" placeholder="Amount (PKR)">
+                <button class="btn btn-danger" onclick="payFine()">Pay</button>
+            </div>
+        </div>
+
         <hr>
         <div id="returnItemsContainer"></div>
         <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
-        <button class="btn btn-danger" onclick="payFine()" id="payFineBtn" style="display:none;">Clear Fines</button>
     </div>
 
-    <div id="restock" class="tab-content admin-only">
+    <div id="restock" class="tab-content">
         <h3>Add or Restock Inventory</h3>
         <select id="restockType" onchange="toggleRestockType()">
             <option value="existing">Restock Existing Item</option>
@@ -132,7 +141,7 @@
 
     let cart = [];
 
-    // --- API HELPER FUNCTION ---
+    // --- API HELPER ---
     async function callApi(action, params = {}) {
         params.action = action;
         let url = new URL(SCRIPT_URL);
@@ -142,7 +151,7 @@
             let response = await fetch(url);
             return await response.json();
         } catch (error) {
-            alert("Connection error. Ensure your GAS Web App is set to 'Anyone' and the URL is correct.");
+            alert("Connection error. Ensure your GAS Web App is set to 'Anyone'.");
             console.error(error);
         }
     }
@@ -164,7 +173,7 @@
         let data = await callApi('adminLogin', { user: u, pass: p });
         if(data && data.success) {
             document.getElementById('login-overlay').style.display = 'none';
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.tab-btn.admin-only').forEach(el => el.style.display = 'block'); // Unhide buttons only
             loadDashboard();
         } else {
             alert(data ? data.message : "Error logging in");
@@ -174,105 +183,105 @@
 
     function enterViewOnly() {
         document.getElementById('login-overlay').style.display = 'none';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn.admin-only').forEach(el => el.style.display = 'none');
         loadDashboard();
     }
 
-    // --- QR SCANNER LOGIC ---
-    let html5QrcodeScanner;
-    let currentScanMode = '';
-
+    // --- QR SCANNER ---
+    let html5QrcodeScanner; let currentScanMode = '';
     function startScanner(mode) {
         currentScanMode = mode;
         document.getElementById('scanner-modal').style.display = 'flex';
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        html5QrcodeScanner.render((text) => { stopScanner(); document.getElementById(currentScanMode + 'RollNo').value = text; fetchStudent(currentScanMode); }, (err) => {});
     }
+    function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
 
-    function onScanSuccess(decodedText, decodedResult) {
-        stopScanner();
-        document.getElementById(currentScanMode + 'RollNo').value = decodedText;
-        fetchStudent(currentScanMode);
-    }
-
-    function onScanFailure(error) {}
-
-    function stopScanner() {
-        if (html5QrcodeScanner) html5QrcodeScanner.clear();
-        document.getElementById('scanner-modal').style.display = 'none';
-    }
-
-    // --- DASHBOARD & INVENTORY ---
+    // --- DASHBOARD ---
     async function loadDashboard() {
         let data = await callApi('apiGetInventory');
         if(!data) return;
-        
-        let tbody = document.getElementById('inventoryTableBody');
-        let select1 = document.getElementById('issueItemSelect');
-        let select2 = document.getElementById('restockItemSelect');
-        tbody.innerHTML = ''; select1.innerHTML = ''; select2.innerHTML = '';
-        
+        let tbody = document.getElementById('inventoryTableBody'); let s1 = document.getElementById('issueItemSelect'); let s2 = document.getElementById('restockItemSelect');
+        tbody.innerHTML = ''; s1.innerHTML = ''; s2.innerHTML = '';
         data.items.forEach(item => {
             if(item.available > 0) {
                 tbody.innerHTML += `<tr><td>${item.name}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-                select1.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
+                s1.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
             }
-            select2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
+            s2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
         });
     }
 
-    // --- ISSUE LOGIC ---
+    // --- ISSUE (EDITABLE CART) ---
     async function fetchStudent(mode) {
         let rollNo = document.getElementById(mode + 'RollNo').value;
         if(!rollNo) return alert("Enter Roll No");
-        
-        let btnText = document.querySelector(`#${mode} .btn-success`).innerText;
         document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
-
         let data = await callApi('apiGetStudent', { rollNo: rollNo });
-        document.querySelector(`#${mode} .btn-success`).innerText = btnText;
+        document.querySelector(`#${mode} .btn-success`).innerText = mode === 'issue' ? "Find Student" : "Find Open Items";
         if(!data) return;
 
-        let infoDiv = document.getElementById(mode + 'StudentInfo');
-        infoDiv.innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}`;
+        document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}`;
         
         if(mode === 'return') {
-            if(data.fines > 0) document.getElementById('payFineBtn').style.display = 'block';
+            if(data.fines > 0) {
+                document.getElementById('finePaymentContainer').style.display = 'block';
+                document.getElementById('finePayAmount').value = data.fines; // Set default to max fine
+            } else {
+                document.getElementById('finePaymentContainer').style.display = 'none';
+            }
             fetchOpenTransactions(rollNo);
         }
     }
 
     function addToCart() {
-        let name = document.getElementById('issueItemSelect').value;
-        let qty = document.getElementById('issueQty').value;
-        cart.push({ itemName: name, qty: qty });
-        document.getElementById('cartList').innerHTML += `<li>${qty}x <b>${name}</b></li>`;
-        document.getElementById('checkoutBtn').style.display = 'block';
+        cart.push({ itemName: document.getElementById('issueItemSelect').value, qty: document.getElementById('issueQty').value });
+        updateCartUI();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        let list = document.getElementById('cartList');
+        list.innerHTML = '';
+        cart.forEach((item, index) => {
+            list.innerHTML += `<li style="background: #e9ecef; margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <span><b>${item.qty}x</b> ${item.itemName}</span>
+                <span style="cursor: pointer; color: red; font-size: 18px;" onclick="removeFromCart(${index})" title="Remove">❌</span>
+            </li>`;
+        });
+        document.getElementById('checkoutBtn').style.display = cart.length > 0 ? 'block' : 'none';
     }
 
     async function checkout() {
-        let rollNo = document.getElementById('issueRollNo').value;
         document.getElementById('checkoutBtn').innerText = "Processing...";
-        
-        let data = await callApi('apiIssueItems', { rollNo: rollNo, cart: JSON.stringify(cart) });
+        let data = await callApi('apiIssueItems', { rollNo: document.getElementById('issueRollNo').value, cart: JSON.stringify(cart) });
         alert(data.message);
-        cart = []; document.getElementById('cartList').innerHTML = '';
-        document.getElementById('checkoutBtn').style.display = 'none';
+        cart = []; updateCartUI();
         document.getElementById('checkoutBtn').innerText = "Checkout Now";
         loadDashboard();
     }
 
-    // --- RETURN LOGIC ---
+    // --- RETURN & FINES (PARTIAL) ---
     async function fetchOpenTransactions(rollNo) {
         let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
-        let container = document.getElementById('returnItemsContainer');
-        container.innerHTML = '';
+        let container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
         if(!data || data.items.length === 0) return container.innerHTML = "<p>No open items.</p>";
         
         data.items.forEach(item => {
             container.innerHTML += `
-            <div class="return-item" data-id="${item.transactionId}" data-itemid="${item.itemId}" data-qty="${item.qty}">
-                <p><b>${item.qty}x ${item.itemName}</b> (Due: ${item.dueDate})</p>
+            <div class="return-item" data-id="${item.transactionId}" data-itemid="${item.itemId}">
+                <p style="margin-bottom: 5px;"><b>${item.itemName}</b> (Due: ${item.dueDate})</p>
+                
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                    <label>Return Qty:</label>
+                    <input type="number" class="retQtyInput" value="${item.qty}" max="${item.qty}" min="0" style="width: 80px; margin: 0;">
+                    <span style="color:#666;">/ ${item.qty}</span>
+                </div>
+
                 <select class="condSelect" onchange="toggleFine(this)">
                     <option value="Good">Good</option>
                     <option value="Damaged">Damaged</option>
@@ -285,41 +294,43 @@
         document.getElementById('processReturnBtn').style.display = 'block';
     }
 
-    function toggleFine(selectElement) {
-        let fineInput = selectElement.nextElementSibling;
-        fineInput.style.display = selectElement.value === "Damaged" ? "inline-block" : "none";
-        fineInput.value = selectElement.value === "Damaged" ? "" : "0";
+    function toggleFine(sel) {
+        sel.nextElementSibling.style.display = sel.value === "Damaged" ? "inline-block" : "none";
+        sel.nextElementSibling.value = sel.value === "Damaged" ? "" : "0";
     }
 
     async function processReturns() {
-        let rollNo = document.getElementById('returnRollNo').value;
         let returnData = [];
         document.querySelectorAll('.return-item').forEach(div => {
-            returnData.push({
-                transactionId: div.dataset.id, itemId: div.dataset.itemid, qty: div.dataset.qty,
-                condition: div.querySelector('.condSelect').value,
-                fineAmount: div.querySelector('.fineInput').value || 0
-            });
+            let q = parseInt(div.querySelector('.retQtyInput').value);
+            if(q > 0) {
+                returnData.push({ transactionId: div.dataset.id, itemId: div.dataset.itemid, qty: q, condition: div.querySelector('.condSelect').value, fineAmount: div.querySelector('.fineInput').value || 0 });
+            }
         });
+        if(returnData.length === 0) return alert("Adjust the quantities to return at least 1 item.");
+
         document.getElementById('processReturnBtn').innerText = "Processing...";
-        
-        let data = await callApi('apiProcessReturns', { rollNo: rollNo, returns: JSON.stringify(returnData) });
+        let data = await callApi('apiProcessReturns', { rollNo: document.getElementById('returnRollNo').value, returns: JSON.stringify(returnData) });
         alert(data.message);
         document.getElementById('returnItemsContainer').innerHTML = '';
         document.getElementById('processReturnBtn').style.display = 'none';
         document.getElementById('processReturnBtn').innerText = "Process Returns";
-        loadDashboard();
+        fetchStudent('return'); // refresh view
     }
 
     async function payFine() {
-        let rollNo = document.getElementById('returnRollNo').value;
-        let data = await callApi('apiPayFine', { rollNo: rollNo });
+        let amt = document.getElementById('finePayAmount').value;
+        if(!amt || amt <= 0) return alert("Please enter a valid amount to pay.");
+        let btn = document.querySelector('#finePaymentContainer .btn-danger');
+        btn.innerText = "...";
+        
+        let data = await callApi('apiPayFine', { rollNo: document.getElementById('returnRollNo').value, amount: amt });
         alert(data.message);
-        document.getElementById('payFineBtn').style.display = 'none';
-        fetchStudent('return');
+        btn.innerText = "Pay";
+        fetchStudent('return'); // refresh fine balance
     }
 
-    // --- RESTOCK LOGIC ---
+    // --- RESTOCK ---
     function toggleRestockType() {
         let type = document.getElementById('restockType').value;
         document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
@@ -329,11 +340,8 @@
     async function submitRestock() {
         let isNew = document.getElementById('restockType').value === 'new';
         let name = isNew ? document.getElementById('newItemName').value : document.getElementById('restockItemSelect').value;
-        let qty = document.getElementById('restockQty').value;
-        
-        let data = await callApi('restockItem', { name: name, qty: qty, isNew: isNew });
-        alert(data.message);
-        loadDashboard();
+        let data = await callApi('restockItem', { name: name, qty: document.getElementById('restockQty').value, isNew: isNew });
+        alert(data.message); loadDashboard();
     }
 </script>
 </body>
