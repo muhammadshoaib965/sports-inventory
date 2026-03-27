@@ -1,348 +1,201 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAST NUCES Sports Inventory</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <title>FAST Sports - Admin Returns & Losses</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f7f6; }
-        .uni-header { background: #003366; color: white; text-align: center; padding: 20px; border-bottom: 5px solid #d9534f; }
-        .uni-logo { height: 70px; margin-bottom: 10px; filter: brightness(0) invert(1); }
-        .main-card { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .overlay-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,51,102,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white; }
-        .login-box { background: white; padding: 30px; border-radius: 10px; color: #333; width: 80%; max-width: 350px; text-align: center; }
-        #scanner-modal { display: none; z-index: 3000; }
-        #reader { width: 100%; max-width: 400px; background: white; padding: 10px; border-radius: 10px; color: black; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; color: white;}
-        .btn-primary { background: #003366; } .btn-primary:hover { background: #002244; }
-        .btn-success { background: #28a745; }
-        .btn-danger { background: #d9534f; }
-        .btn-view { background: #6c757d; margin-top: 20px; }
-        .input-group { display: flex; gap: 10px; align-items: center; }
-        .input-group input { margin: 0; }
-        .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
-        
-        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
-        .tab-btn.active { background: #003366; color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .admin-only { display: none; } /* Only applied to buttons now to prevent display stacking */
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        :root {
+            --primary: #1a3b5c; /* FAST University Blue */
+            --secondary: #29507a;
+            --accent: #e53935; /* Red for fines/losses */
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        h1, h2 { color: var(--primary); text-align: center; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--primary); }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        button { background-color: var(--primary); color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; }
+        button:hover { background-color: var(--secondary); }
+        .btn-danger { background-color: var(--accent); }
+        .btn-danger:hover { background-color: #c62828; }
+        .return-item { background: #f9f9f9; padding: 15px; border-left: 5px solid var(--primary); margin-bottom: 15px; border-radius: 4px; }
+        .row { display: flex; gap: 10px; margin-top: 10px; }
+        .row > div { flex: 1; }
+        #loadingMsg { text-align: center; color: var(--primary); font-weight: bold; display: none; margin-top: 10px; }
+        hr { border: 0; height: 1px; background: #eee; margin: 30px 0; }
     </style>
 </head>
 <body>
 
-<div id="login-overlay" class="overlay-bg">
-    <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <div class="login-box">
-        <h3>Staff Login</h3>
-        <input type="text" id="adminUser" placeholder="Username">
-        <input type="password" id="adminPass" placeholder="Password">
-        <button class="btn btn-primary" onclick="checkLogin()">Login</button>
-        <hr>
-        <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
-    </div>
-</div>
+    <h1>FAST Sports Administration</h1>
 
-<div id="scanner-modal" class="overlay-bg">
-    <div id="reader"></div>
-    <button class="btn btn-danger" style="max-width: 400px; margin-top: 20px;" onclick="stopScanner()">Cancel Scan</button>
-</div>
-
-<div class="uni-header">
-    <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <h1 style="font-size: 22px; margin: 0;">National University of Computer and Emerging Sciences</h1>
-    <p style="margin: 5px 0; opacity: 0.9;">Multan Campus</p>
-    <h2 style="font-size: 18px; margin-top: 10px; color: #ffc107;">Sports Inventory System</h2>
-</div>
-
-<div class="main-card">
-    <div class="tab-bar" id="tabBar">
-        <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
-        <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue Items</div>
-        <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Returns</div>
-        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock</div>
-    </div>
-
-    <div id="dashboard" class="tab-content active">
-        <h3>Available Inventory</h3>
-        <button class="btn btn-primary" onclick="loadDashboard()">Refresh Stock</button>
-        <table>
-            <thead><tr><th>Item Name</th><th>Available</th><th>Total Owned</th></tr></thead>
-            <tbody id="inventoryTableBody"></tbody>
-        </table>
-    </div>
-
-    <div id="issue" class="tab-content">
-        <h3>Issue Equipment</h3>
-        <div class="input-group">
-            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
-            <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
+    <div class="container">
+        <h2>Process Student Returns</h2>
+        <p style="text-align:center; font-size: 14px; color: #666;">Scan or type the student's Roll Number to process returned items.</p>
+        
+        <div class="form-group">
+            <label for="rollNumber">Student Roll Number (e.g., 21F-1234):</label>
+            <input type="text" id="rollNumber" placeholder="Enter Roll Number...">
         </div>
-        <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
-        <div id="issueStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
-        
-        <hr>
-        <h4>Select Items</h4>
-        <select id="issueItemSelect"></select>
-        <input type="number" id="issueQty" placeholder="Quantity" value="1" min="1">
-        <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
-        
-        <ul id="cartList" style="list-style: none; padding: 0;"></ul>
-        <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; width:100%; font-size: 18px;">Checkout Now</button>
-    </div>
+        <button onclick="fetchOpenTransactions()">Find Open Items</button>
+        <p id="loadingMsg">Loading data from system...</p>
 
-    <div id="return" class="tab-content">
-        <h3>Return Equipment</h3>
-        <div class="input-group">
-            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
-            <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
-        <div id="returnStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
-        
-        <div id="finePaymentContainer" style="display:none; background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeeba;">
-            <p style="margin: 0 0 5px 0; color: #856404; font-weight: bold;">Log Fine Payment</p>
-            <div class="input-group">
-                <input type="number" id="finePayAmount" placeholder="Amount (PKR)">
-                <button class="btn btn-danger" onclick="payFine()">Pay</button>
+        <div id="openItemsContainer" style="margin-top: 20px;">
             </div>
+
+        <button id="submitReturnsBtn" style="display:none; margin-top: 20px; background-color: #2e7d32;" onclick="submitReturns()">Process Selected Returns</button>
+    </div>
+
+    <div class="container" style="border-top: 5px solid var(--accent);">
+        <h2 style="color: var(--accent);">Mark Office Item Loss</h2>
+        <p style="text-align:center; font-size: 14px; color: #666;">Use this if an item goes missing directly from the sports office (No student fine applied).</p>
+        
+        <div class="form-group">
+            <label for="lossItemName">Item Name (Exact match from Inventory):</label>
+            <input type="text" id="lossItemName" placeholder="e.g., Cricket Bat">
         </div>
-
-        <hr>
-        <div id="returnItemsContainer"></div>
-        <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
+        <div class="form-group">
+            <label for="lossQty">Quantity Lost:</label>
+            <input type="number" id="lossQty" min="1" value="1">
+        </div>
+        <button class="btn-danger" onclick="markOfficeLoss()">Report Office Loss</button>
     </div>
 
-    <div id="restock" class="tab-content">
-        <h3>Add or Restock Inventory</h3>
-        <select id="restockType" onchange="toggleRestockType()">
-            <option value="existing">Restock Existing Item</option>
-            <option value="new">Add New Item</option>
-        </select>
-        <select id="restockItemSelect"></select>
-        <input type="text" id="newItemName" placeholder="Enter New Item Name" style="display:none;">
-        <input type="number" id="restockQty" placeholder="Quantity to Add">
-        <button class="btn btn-primary" onclick="submitRestock()">Update Inventory</button>
-    </div>
-</div>
-
-<script>
-    // =========================================================
-    // ⚠️ REPLACE THE URL BELOW WITH YOUR APPS SCRIPT WEB APP URL
-    // =========================================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
-
-    let cart = [];
-
-    // --- API HELPER ---
-    async function callApi(action, params = {}) {
-        params.action = action;
-        let url = new URL(SCRIPT_URL);
-        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    <script>
+        // ⚠️ REPLACE THIS WITH YOUR NEW "WEB APP URL" FROM APPS SCRIPT
+        const SCRIPT_URL = "YOUR_WEB_APP_URL_HERE"; 
         
-        try {
-            let response = await fetch(url);
-            return await response.json();
-        } catch (error) {
-            alert("Connection error. Ensure your GAS Web App is set to 'Anyone'.");
-            console.error(error);
-        }
-    }
+        let currentOpenItems = [];
 
-    // --- NAVIGATION & LOGIN ---
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        event.target.classList.add('active');
-        if(tabId === 'dashboard') loadDashboard();
-    }
+        // --- FETCH STUDENT OPEN ITEMS ---
+        async function fetchOpenTransactions() {
+            const rollNo = document.getElementById('rollNumber').value.trim();
+            if (!rollNo) return alert("Please enter a Roll Number");
 
-    async function checkLogin() {
-        const u = document.getElementById('adminUser').value;
-        const p = document.getElementById('adminPass').value;
-        document.getElementById('adminUser').value = "Logging in...";
-        
-        let data = await callApi('adminLogin', { user: u, pass: p });
-        if(data && data.success) {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.querySelectorAll('.tab-btn.admin-only').forEach(el => el.style.display = 'block'); // Unhide buttons only
-            loadDashboard();
-        } else {
-            alert(data ? data.message : "Error logging in");
-            document.getElementById('adminUser').value = u;
-        }
-    }
+            document.getElementById('loadingMsg').style.display = "block";
+            document.getElementById('openItemsContainer').innerHTML = "";
+            document.getElementById('submitReturnsBtn').style.display = "none";
 
-    function enterViewOnly() {
-        document.getElementById('login-overlay').style.display = 'none';
-        document.querySelectorAll('.tab-btn.admin-only').forEach(el => el.style.display = 'none');
-        loadDashboard();
-    }
-
-    // --- QR SCANNER ---
-    let html5QrcodeScanner; let currentScanMode = '';
-    function startScanner(mode) {
-        currentScanMode = mode;
-        document.getElementById('scanner-modal').style.display = 'flex';
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render((text) => { stopScanner(); document.getElementById(currentScanMode + 'RollNo').value = text; fetchStudent(currentScanMode); }, (err) => {});
-    }
-    function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
-
-    // --- DASHBOARD ---
-    async function loadDashboard() {
-        let data = await callApi('apiGetInventory');
-        if(!data) return;
-        let tbody = document.getElementById('inventoryTableBody'); let s1 = document.getElementById('issueItemSelect'); let s2 = document.getElementById('restockItemSelect');
-        tbody.innerHTML = ''; s1.innerHTML = ''; s2.innerHTML = '';
-        data.items.forEach(item => {
-            if(item.available > 0) {
-                tbody.innerHTML += `<tr><td>${item.name}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-                s1.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
-            }
-            s2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
-        });
-    }
-
-    // --- ISSUE (EDITABLE CART) ---
-    async function fetchStudent(mode) {
-        let rollNo = document.getElementById(mode + 'RollNo').value;
-        if(!rollNo) return alert("Enter Roll No");
-        document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
-        let data = await callApi('apiGetStudent', { rollNo: rollNo });
-        document.querySelector(`#${mode} .btn-success`).innerText = mode === 'issue' ? "Find Student" : "Find Open Items";
-        if(!data) return;
-
-        document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}`;
-        
-        if(mode === 'return') {
-            if(data.fines > 0) {
-                document.getElementById('finePaymentContainer').style.display = 'block';
-                document.getElementById('finePayAmount').value = data.fines; // Set default to max fine
-            } else {
-                document.getElementById('finePaymentContainer').style.display = 'none';
-            }
-            fetchOpenTransactions(rollNo);
-        }
-    }
-
-    function addToCart() {
-        cart.push({ itemName: document.getElementById('issueItemSelect').value, qty: document.getElementById('issueQty').value });
-        updateCartUI();
-    }
-
-    function removeFromCart(index) {
-        cart.splice(index, 1);
-        updateCartUI();
-    }
-
-    function updateCartUI() {
-        let list = document.getElementById('cartList');
-        list.innerHTML = '';
-        cart.forEach((item, index) => {
-            list.innerHTML += `<li style="background: #e9ecef; margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
-                <span><b>${item.qty}x</b> ${item.itemName}</span>
-                <span style="cursor: pointer; color: red; font-size: 18px;" onclick="removeFromCart(${index})" title="Remove">❌</span>
-            </li>`;
-        });
-        document.getElementById('checkoutBtn').style.display = cart.length > 0 ? 'block' : 'none';
-    }
-
-    async function checkout() {
-        document.getElementById('checkoutBtn').innerText = "Processing...";
-        let data = await callApi('apiIssueItems', { rollNo: document.getElementById('issueRollNo').value, cart: JSON.stringify(cart) });
-        alert(data.message);
-        cart = []; updateCartUI();
-        document.getElementById('checkoutBtn').innerText = "Checkout Now";
-        loadDashboard();
-    }
-
-    // --- RETURN & FINES (PARTIAL) ---
-    async function fetchOpenTransactions(rollNo) {
-        let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
-        let container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
-        if(!data || data.items.length === 0) return container.innerHTML = "<p>No open items.</p>";
-        
-        data.items.forEach(item => {
-            container.innerHTML += `
-            <div class="return-item" data-id="${item.transactionId}" data-itemid="${item.itemId}">
-                <p style="margin-bottom: 5px;"><b>${item.itemName}</b> (Due: ${item.dueDate})</p>
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=apiGetOpenTransactions&rollNo=${rollNo}`);
+                const data = await response.json();
                 
-                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
-                    <label>Return Qty:</label>
-                    <input type="number" class="retQtyInput" value="${item.qty}" max="${item.qty}" min="0" style="width: 80px; margin: 0;">
-                    <span style="color:#666;">/ ${item.qty}</span>
-                </div>
+                document.getElementById('loadingMsg').style.display = "none";
 
-                <select class="condSelect" onchange="toggleFine(this)">
-                    <option value="Good">Good</option>
-                    <option value="Damaged">Damaged</option>
-                    <option value="Consumed">Consumed (e.g. broken ball)</option>
-                </select>
-                <input type="number" class="fineInput" placeholder="Fine PKR" style="display:none; width:100px;">
-                <hr>
-            </div>`;
-        });
-        document.getElementById('processReturnBtn').style.display = 'block';
-    }
-
-    function toggleFine(sel) {
-        sel.nextElementSibling.style.display = sel.value === "Damaged" ? "inline-block" : "none";
-        sel.nextElementSibling.value = sel.value === "Damaged" ? "" : "0";
-    }
-
-    async function processReturns() {
-        let returnData = [];
-        document.querySelectorAll('.return-item').forEach(div => {
-            let q = parseInt(div.querySelector('.retQtyInput').value);
-            if(q > 0) {
-                returnData.push({ transactionId: div.dataset.id, itemId: div.dataset.itemid, qty: q, condition: div.querySelector('.condSelect').value, fineAmount: div.querySelector('.fineInput').value || 0 });
+                if (data.success && data.items.length > 0) {
+                    currentOpenItems = data.items;
+                    let html = `<h3>Items currently issued to ${rollNo}:</h3>`;
+                    
+                    data.items.forEach((item, index) => {
+                        html += `
+                        <div class="return-item">
+                            <strong>${item.itemName}</strong> (Qty Issued: ${item.qty}) <br>
+                            <span style="font-size:12px; color:#555;">Transaction ID: ${item.transactionId}</span>
+                            
+                            <div class="row">
+                                <div>
+                                    <label>Return Qty:</label>
+                                    <input type="number" id="retQty_${index}" max="${item.qty}" min="0" value="${item.qty}">
+                                </div>
+                                <div>
+                                    <label>Condition:</label>
+                                    <select id="retCondition_${index}">
+                                        <option value="Good">Good</option>
+                                        <option value="Consumed">Consumed (e.g., Shuttlecock)</option>
+                                        <option value="Damaged">Damaged</option>
+                                        <option value="Lost">Lost by Student</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Fine Amount (PKR):</label>
+                                    <input type="number" id="retFine_${index}" value="0" min="0">
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    document.getElementById('openItemsContainer').innerHTML = html;
+                    document.getElementById('submitReturnsBtn').style.display = "block";
+                } else {
+                    document.getElementById('openItemsContainer').innerHTML = `<p style="color:red; text-align:center;">No open transactions found for this student.</p>`;
+                }
+            } catch (error) {
+                alert("Error connecting to server. Make sure you replaced the SCRIPT_URL.");
+                document.getElementById('loadingMsg').style.display = "none";
             }
-        });
-        if(returnData.length === 0) return alert("Adjust the quantities to return at least 1 item.");
+        }
 
-        document.getElementById('processReturnBtn').innerText = "Processing...";
-        let data = await callApi('apiProcessReturns', { rollNo: document.getElementById('returnRollNo').value, returns: JSON.stringify(returnData) });
-        alert(data.message);
-        document.getElementById('returnItemsContainer').innerHTML = '';
-        document.getElementById('processReturnBtn').style.display = 'none';
-        document.getElementById('processReturnBtn').innerText = "Process Returns";
-        fetchStudent('return'); // refresh view
-    }
+        // --- SUBMIT STUDENT RETURNS & FINES ---
+        async function submitReturns() {
+            const rollNo = document.getElementById('rollNumber').value.trim();
+            let returnsArray = [];
 
-    async function payFine() {
-        let amt = document.getElementById('finePayAmount').value;
-        if(!amt || amt <= 0) return alert("Please enter a valid amount to pay.");
-        let btn = document.querySelector('#finePaymentContainer .btn-danger');
-        btn.innerText = "...";
-        
-        let data = await callApi('apiPayFine', { rollNo: document.getElementById('returnRollNo').value, amount: amt });
-        alert(data.message);
-        btn.innerText = "Pay";
-        fetchStudent('return'); // refresh fine balance
-    }
+            currentOpenItems.forEach((item, index) => {
+                let rQty = parseInt(document.getElementById(`retQty_${index}`).value);
+                let cond = document.getElementById(`retCondition_${index}`).value;
+                let fine = parseInt(document.getElementById(`retFine_${index}`).value) || 0;
 
-    // --- RESTOCK ---
-    function toggleRestockType() {
-        let type = document.getElementById('restockType').value;
-        document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
-        document.getElementById('newItemName').style.display = type === 'new' ? 'block' : 'none';
-    }
+                if (rQty > 0) {
+                    returnsArray.push({
+                        transactionId: item.transactionId,
+                        itemId: item.itemId,
+                        qty: rQty,
+                        condition: cond,
+                        fineAmount: fine
+                    });
+                }
+            });
 
-    async function submitRestock() {
-        let isNew = document.getElementById('restockType').value === 'new';
-        let name = isNew ? document.getElementById('newItemName').value : document.getElementById('restockItemSelect').value;
-        let data = await callApi('restockItem', { name: name, qty: document.getElementById('restockQty').value, isNew: isNew });
-        alert(data.message); loadDashboard();
-    }
-</script>
+            if (returnsArray.length === 0) return alert("No items selected to return.");
+
+            document.getElementById('submitReturnsBtn').innerText = "Processing...";
+            
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=apiProcessReturns&rollNo=${rollNo}&returns=${encodeURIComponent(JSON.stringify(returnsArray))}`);
+                const data = await response.json();
+                
+                if(data.success) {
+                    alert("✅ " + data.message);
+                    document.getElementById('openItemsContainer').innerHTML = "";
+                    document.getElementById('submitReturnsBtn').style.display = "none";
+                    document.getElementById('rollNumber').value = "";
+                } else {
+                    alert("❌ Error: " + data.message);
+                }
+            } catch (error) {
+                alert("Error processing returns.");
+            }
+            document.getElementById('submitReturnsBtn').innerText = "Process Selected Returns";
+        }
+
+        // --- MARK OFFICE LOSS (NEW API) ---
+        async function markOfficeLoss() {
+            const itemName = document.getElementById('lossItemName').value.trim();
+            const qty = document.getElementById('lossQty').value;
+
+            if (!itemName || qty <= 0) return alert("Please enter a valid item name and quantity.");
+
+            if(confirm(`Are you sure you want to mark ${qty}x ${itemName} as lost from the office? This cannot be undone.`)) {
+                try {
+                    const response = await fetch(`${SCRIPT_URL}?action=apiMarkOfficeLoss&itemName=${encodeURIComponent(itemName)}&qty=${qty}`);
+                    const data = await response.json();
+                    
+                    if(data.success) {
+                        alert("✅ " + data.message);
+                        document.getElementById('lossItemName').value = "";
+                        document.getElementById('lossQty').value = "1";
+                    } else {
+                        alert("❌ Error: " + data.message);
+                    }
+                } catch (error) {
+                    alert("Error communicating with server.");
+                }
+            }
+        }
+    </script>
 </body>
 </html>
