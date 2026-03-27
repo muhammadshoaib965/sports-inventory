@@ -1,311 +1,340 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <base target="_top">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAST NUCES Sports Inventory</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f7f6; }
-        .uni-header { 
-            background: #003366; color: white; text-align: center; padding: 20px; 
-            border-bottom: 5px solid #d9534f; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+        .uni-header { background: #003366; color: white; text-align: center; padding: 20px; border-bottom: 5px solid #d9534f; }
         .uni-logo { height: 70px; margin-bottom: 10px; filter: brightness(0) invert(1); }
-        .main-card { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        
-        /* Login Overlay Styles */
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,51,102,0.95); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 2000; color: white;
-        }
+        .main-card { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .overlay-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,51,102,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white; }
         .login-box { background: white; padding: 30px; border-radius: 10px; color: #333; width: 80%; max-width: 350px; text-align: center; }
-        input[type="text"], input[type="password"], select, input[type="number"] {
-            width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;
-        }
-        .btn { 
-            width: 100%; padding: 12px; border: none; border-radius: 6px; 
-            cursor: pointer; font-weight: bold; transition: 0.3s; margin-top: 10px;
-        }
-        .btn-primary { background: #003366; color: white; }
-        .btn-view { background: #6c757d; color: white; margin-top: 20px; }
-        
-        .admin-only { display: none; } /* Hidden by default */
+        #scanner-modal { display: none; z-index: 3000; }
+        #reader { width: 100%; max-width: 400px; background: white; padding: 10px; border-radius: 10px; color: black; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; color: white;}
+        .btn-primary { background: #003366; } .btn-primary:hover { background: #002244; }
+        .btn-success { background: #28a745; }
+        .btn-danger { background: #d9534f; }
+        .btn-view { background: #6c757d; margin-top: 20px; }
+        .input-group { display: flex; gap: 10px; align-items: center; }
+        .input-group input { margin: 0; }
+        .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
+        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
+        .tab-btn.active { background: #003366; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .admin-only { display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
 
-<div id="login-overlay">
+<div id="login-overlay" class="overlay-bg">
     <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
     <div class="login-box">
-        <h3>Admin Portal</h3>
+        <h3>Staff Login</h3>
         <input type="text" id="adminUser" placeholder="Username">
         <input type="password" id="adminPass" placeholder="Password">
-        <button class="btn btn-primary" onclick="checkLogin()">Login as Admin</button>
+        <button class="btn btn-primary" onclick="checkLogin()">Login</button>
         <hr>
         <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
     </div>
 </div>
 
+<div id="scanner-modal" class="overlay-bg">
+    <div id="reader"></div>
+    <button class="btn btn-danger" style="max-width: 400px; margin-top: 20px;" onclick="stopScanner()">Cancel Scan</button>
+</div>
+
 <div class="uni-header">
     <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <h1 style="font-size: 20px; margin: 0;">National University of Computer and Emerging Sciences</h1>
+    <h1 style="font-size: 22px; margin: 0;">National University of Computer and Emerging Sciences</h1>
     <p style="margin: 5px 0; opacity: 0.9;">Multan Campus</p>
-    <h2 style="font-size: 16px; margin-top: 10px; color: #ffc107;">Sports Inventory Management System</h2>
+    <h2 style="font-size: 18px; margin-top: 10px; color: #ffc107;">Sports Inventory System</h2>
 </div>
 
 <div class="main-card">
-    <div id="restock-section" class="admin-only">
-        <h3>📦 Add/Restock Inventory</h3>
-        <select id="restockType" onchange="toggleNewItemField()">
+    <div class="tab-bar" id="tabBar">
+        <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+        <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue Items</div>
+        <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Returns</div>
+        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock</div>
+    </div>
+
+    <div id="dashboard" class="tab-content active">
+        <h3>Available Inventory</h3>
+        <button class="btn btn-primary" onclick="loadDashboard()">Refresh Stock</button>
+        <table>
+            <thead><tr><th>Item Name</th><th>Available</th><th>Total Owned</th></tr></thead>
+            <tbody id="inventoryTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="issue" class="tab-content admin-only">
+        <h3>Issue Equipment</h3>
+        <div class="input-group">
+            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
+            <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
+        </div>
+        <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
+        <div id="issueStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
+        
+        <hr>
+        <h4>Select Items</h4>
+        <select id="issueItemSelect"></select>
+        <input type="number" id="issueQty" placeholder="Quantity" value="1" min="1">
+        <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
+        
+        <ul id="cartList"></ul>
+        <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; width:100%; font-size: 18px;">Checkout Now</button>
+    </div>
+
+    <div id="return" class="tab-content admin-only">
+        <h3>Return Equipment</h3>
+        <div class="input-group">
+            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
+            <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
+        </div>
+        <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
+        <div id="returnStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
+        
+        <hr>
+        <div id="returnItemsContainer"></div>
+        <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
+        <button class="btn btn-danger" onclick="payFine()" id="payFineBtn" style="display:none;">Clear Fines</button>
+    </div>
+
+    <div id="restock" class="tab-content admin-only">
+        <h3>Add or Restock Inventory</h3>
+        <select id="restockType" onchange="toggleRestockType()">
             <option value="existing">Restock Existing Item</option>
-            <option value="new">Add Completely New Item</option>
+            <option value="new">Add New Item</option>
         </select>
-        <div id="existing-item-list">
-             <select id="itemSelect"></select>
-        </div>
-        <div id="new-item-input" style="display:none;">
-            <input type="text" id="newItemName" placeholder="Enter New Item Name">
-        </div>
-        <input type="number" id="restockQty" placeholder="Quantity">
+        <select id="restockItemSelect"></select>
+        <input type="text" id="newItemName" placeholder="Enter New Item Name" style="display:none;">
+        <input type="number" id="restockQty" placeholder="Quantity to Add">
         <button class="btn btn-primary" onclick="submitRestock()">Update Inventory</button>
     </div>
-
-    </div>
+</div>
 
 <script>
-    let isAdmin = false;
+    // =========================================================
+    // ⚠️ REPLACE THE URL BELOW WITH YOUR APPS SCRIPT WEB APP URL
+    // =========================================================
+    const SCRIPT_URL = "YOUR_GOOGLE_WEB_APP_URL_HERE"; 
 
-    function checkLogin() {
+    let cart = [];
+
+    // --- API HELPER FUNCTION ---
+    async function callApi(action, params = {}) {
+        params.action = action;
+        let url = new URL(SCRIPT_URL);
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        
+        try {
+            let response = await fetch(url);
+            return await response.json();
+        } catch (error) {
+            alert("Connection error. Ensure your GAS Web App is set to 'Anyone' and the URL is correct.");
+            console.error(error);
+        }
+    }
+
+    // --- NAVIGATION & LOGIN ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+        if(tabId === 'dashboard') loadDashboard();
+    }
+
+    async function checkLogin() {
         const u = document.getElementById('adminUser').value;
         const p = document.getElementById('adminPass').value;
+        document.getElementById('adminUser').value = "Logging in...";
         
-        // Call backend to verify
-        google.script.run.withSuccessHandler(function(res) {
-            let data = JSON.parse(res);
-            if(data.success) {
-                isAdmin = true;
-                document.getElementById('login-overlay').style.display = 'none';
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
-                alert("Welcome, Admin!");
-            } else {
-                alert("Invalid Login!");
-            }
-        }).adminLogin(u, p);
+        let data = await callApi('adminLogin', { user: u, pass: p });
+        if(data && data.success) {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            loadDashboard();
+        } else {
+            alert(data ? data.message : "Error logging in");
+            document.getElementById('adminUser').value = u;
+        }
     }
 
     function enterViewOnly() {
-        isAdmin = false;
         document.getElementById('login-overlay').style.display = 'none';
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        // Load inventory for viewing
-        loadInventory();
+        loadDashboard();
     }
 
-    function toggleNewItemField() {
-        const type = document.getElementById('restockType').value;
-        document.getElementById('existing-item-list').style.display = (type === 'existing' ? 'block' : 'none');
-        document.getElementById('new-item-input').style.display = (type === 'new' ? 'block' : 'none');
+    // --- QR SCANNER LOGIC ---
+    let html5QrcodeScanner;
+    let currentScanMode = '';
+
+    function startScanner(mode) {
+        currentScanMode = mode;
+        document.getElementById('scanner-modal').style.display = 'flex';
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     }
 
-    function submitRestock() {
-        const type = document.getElementById('restockType').value;
-        const qty = document.getElementById('restockQty').value;
-        const name = (type === 'existing') ? document.getElementById('itemSelect').value : document.getElementById('newItemName').value;
+    function onScanSuccess(decodedText, decodedResult) {
+        stopScanner();
+        document.getElementById(currentScanMode + 'RollNo').value = decodedText;
+        fetchStudent(currentScanMode);
+    }
+
+    function onScanFailure(error) {}
+
+    function stopScanner() {
+        if (html5QrcodeScanner) html5QrcodeScanner.clear();
+        document.getElementById('scanner-modal').style.display = 'none';
+    }
+
+    // --- DASHBOARD & INVENTORY ---
+    async function loadDashboard() {
+        let data = await callApi('apiGetInventory');
+        if(!data) return;
         
-        google.script.run.withSuccessHandler(function(res) {
-            alert(JSON.parse(res).message);
-            location.reload(); // Refresh to show new stock
-        }).restockItem(name, qty, (type === 'new'));
-    }
-</script>
-</body>
-</html>
-
-<script>
-  // PASTE YOUR APPS SCRIPT WEB APP URL HERE
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec";
-
-  let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} });
-  let cart = []; 
-  let openTransactions = [];
-  let globalInventory = []; // Stores detailed inventory
-
-  function onScanSuccess(decodedText) {
-    html5QrcodeScanner.pause(true); 
-    document.getElementById("manualInput").value = decodedText;
-    processStudentInput();
-  }
-  html5QrcodeScanner.render(onScanSuccess);
-
-  function processStudentInput() {
-    const qrData = document.getElementById("manualInput").value.trim();
-    if (!qrData) return alert("Please enter a roll number.");
-    
-    document.getElementById("loading").style.display = "block";
-    document.getElementById("studentProfile").style.display = "none";
-    document.getElementById("issueSection").style.display = "none";
-    document.getElementById("returnSection").style.display = "none";
-
-    fetch(APPS_SCRIPT_URL + "?action=getStudent&qrData=" + encodeURIComponent(qrData))
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("loading").style.display = "none";
-        if (data.error) return alert(data.error);
-
-        let fines = parseInt(data.fines) || 0;
+        let tbody = document.getElementById('inventoryTableBody');
+        let select1 = document.getElementById('issueItemSelect');
+        let select2 = document.getElementById('restockItemSelect');
+        tbody.innerHTML = ''; select1.innerHTML = ''; select2.innerHTML = '';
         
-        document.getElementById("sName").innerText = data.name;
-        document.getElementById("sRoll").innerText = data.rollNo;
-        document.getElementById("sFines").innerText = fines;
-        document.getElementById("sStatus").innerText = data.accountStatus;
-        document.getElementById("sStatus").className = data.accountStatus === "Active" ? "badge bg-success" : "badge bg-danger";
-        
-        // 1. FINE PAYMENT BUTTON LOGIC
-        document.getElementById("payFineBtn").style.display = fines > 0 ? "inline-block" : "none";
-
-        // 2. BLOCKING LOGIC
-        if (data.accountStatus !== "Active" || fines > 0) {
-          document.getElementById("issueNavBtn").disabled = true;
-          document.getElementById("blockWarning").style.display = "block";
-        } else {
-          document.getElementById("issueNavBtn").disabled = false;
-          document.getElementById("blockWarning").style.display = "none";
-        }
-
-        document.getElementById("studentProfile").style.display = "block";
-        if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) setTimeout(() => html5QrcodeScanner.resume(), 3000);
-      }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Database Error."); });
-  }
-
-  function payFines() {
-    if(!confirm("Are you sure you want to clear this student's fines? Did you receive the cash?")) return;
-    document.getElementById("loading").style.display = "block";
-    const rollNo = document.getElementById("sRoll").innerText;
-
-    fetch(APPS_SCRIPT_URL + "?action=payFine&rollNo=" + encodeURIComponent(rollNo))
-      .then(res => res.json())
-      .then(data => {
-        if(data.success) {
-          alert("Fines cleared successfully!");
-          processStudentInput(); // Refresh profile
-        }
-      });
-  }
-
-  function showIssueSection() {
-    document.getElementById("issueSection").style.display = "block";
-    document.getElementById("returnSection").style.display = "none";
-    document.getElementById("loading").style.display = "block";
-    cart = []; renderCart();
-    document.getElementById("stockWarning").style.display = "none";
-
-    fetch(APPS_SCRIPT_URL + "?action=getInventory")
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("loading").style.display = "none";
-        if (data.success && data.items) {
-          globalInventory = data.items;
-          const datalist = document.getElementById("inventoryList"); datalist.innerHTML = ""; 
-          data.items.forEach(item => { let option = document.createElement("option"); option.value = item.name; datalist.appendChild(option); });
-        }
-      });
-  }
-
-  function checkStockWarning() {
-    const itemName = document.getElementById("selectedItem").value;
-    const itemData = globalInventory.find(i => i.name === itemName);
-    const warningBox = document.getElementById("stockWarning");
-    
-    // 3. LOW STOCK ALERT LOGIC
-    if (itemData && itemData.available <= itemData.threshold) {
-      warningBox.innerText = `Low Stock Alert: Only ${itemData.available} ${itemName} left in inventory!`;
-      warningBox.style.display = "block";
-    } else {
-      warningBox.style.display = "none";
+        data.items.forEach(item => {
+            if(item.available > 0) {
+                tbody.innerHTML += `<tr><td>${item.name}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
+                select1.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
+            }
+            select2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
+        });
     }
-  }
 
-  function addToCart() {
-    const itemName = document.getElementById("selectedItem").value.trim();
-    const qty = parseInt(document.getElementById("selectedQty").value);
-    if (!itemName || qty < 1) return alert("Invalid item/qty");
-    const existing = cart.findIndex(i => i.itemName === itemName);
-    if (existing > -1) cart[existing].qty += qty; else cart.push({ itemName, qty });
-    document.getElementById("selectedItem").value = ""; document.getElementById("selectedQty").value = "1"; 
-    document.getElementById("stockWarning").style.display = "none";
-    renderCart();
-  }
-  
-  function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
-  
-  function renderCart() {
-    const tbody = document.getElementById("cartBody"); tbody.innerHTML = "";
-    if (cart.length === 0) { document.getElementById("cartTable").style.display = "none"; document.getElementById("checkoutBtn").style.display = "none"; return; }
-    cart.forEach((item, index) => { tbody.innerHTML += `<tr><td>${item.itemName}</td><td>${item.qty}</td><td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">X</button></td></tr>`; });
-    document.getElementById("cartTable").style.display = "table"; document.getElementById("checkoutBtn").style.display = "block";
-  }
+    // --- ISSUE LOGIC ---
+    async function fetchStudent(mode) {
+        let rollNo = document.getElementById(mode + 'RollNo').value;
+        if(!rollNo) return alert("Enter Roll No");
+        
+        let btnText = document.querySelector(`#${mode} .btn-success`).innerText;
+        document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
 
-  function submitCheckout() {
-    if (cart.length === 0) return;
-    document.getElementById("loading").style.display = "block";
-    fetch(APPS_SCRIPT_URL + "?action=issueItems&rollNo=" + encodeURIComponent(document.getElementById("sRoll").innerText) + "&cartData=" + encodeURIComponent(JSON.stringify(cart)))
-      .then(res => res.json())
-      .then(data => { document.getElementById("loading").style.display = "none"; if (data.success) { alert(data.message); document.getElementById("issueSection").style.display = "none"; } else alert(data.message); });
-  }
+        let data = await callApi('apiGetStudent', { rollNo: rollNo });
+        document.querySelector(`#${mode} .btn-success`).innerText = btnText;
+        if(!data) return;
 
-  // --- RETURN LOGIC (Kept exactly the same) ---
-  function showReturnSection() {
-    document.getElementById("returnSection").style.display = "block";
-    document.getElementById("issueSection").style.display = "none";
-    document.getElementById("loading").style.display = "block";
-    const rollNo = document.getElementById("sRoll").innerText;
+        let infoDiv = document.getElementById(mode + 'StudentInfo');
+        infoDiv.innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}`;
+        
+        if(mode === 'return') {
+            if(data.fines > 0) document.getElementById('payFineBtn').style.display = 'block';
+            fetchOpenTransactions(rollNo);
+        }
+    }
 
-    fetch(APPS_SCRIPT_URL + "?action=getOpenTransactions&rollNo=" + encodeURIComponent(rollNo))
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("loading").style.display = "none";
-        openTransactions = data.items || [];
-        renderReturnTable();
-      }).catch(err => { document.getElementById("loading").style.display = "none"; alert("Error fetching returns."); });
-  }
+    function addToCart() {
+        let name = document.getElementById('issueItemSelect').value;
+        let qty = document.getElementById('issueQty').value;
+        cart.push({ itemName: name, qty: qty });
+        document.getElementById('cartList').innerHTML += `<li>${qty}x <b>${name}</b></li>`;
+        document.getElementById('checkoutBtn').style.display = 'block';
+    }
 
-  function renderReturnTable() {
-    const tbody = document.getElementById("returnBody"); tbody.innerHTML = "";
-    if (openTransactions.length === 0) { document.getElementById("noItemsMsg").style.display = "block"; document.getElementById("returnTable").style.display = "none"; document.getElementById("processReturnBtn").style.display = "none"; return; }
-    document.getElementById("noItemsMsg").style.display = "none"; document.getElementById("returnTable").style.display = "table"; document.getElementById("processReturnBtn").style.display = "block";
-    openTransactions.forEach((item, index) => {
-      let tr = document.createElement("tr");
-      tr.innerHTML = `<td><input class="form-check-input return-checkbox" type="checkbox" data-index="${index}"></td>
-        <td>${item.itemName} (Qty: ${item.qty})<br><small class="text-muted">Due: ${item.dueDate}</small></td>
-        <td><select class="form-select form-select-sm return-condition" id="cond_${index}" onchange="toggleFineInput(${index})"><option value="Good">Good</option><option value="Consumed">Consumed</option><option value="Damaged">Damaged</option></select></td>
-        <td><input type="number" class="form-control form-control-sm" id="fine_${index}" placeholder="PKR 0" style="display:none;" min="0"></td>`;
-      tbody.appendChild(tr);
-    });
-  }
+    async function checkout() {
+        let rollNo = document.getElementById('issueRollNo').value;
+        document.getElementById('checkoutBtn').innerText = "Processing...";
+        
+        let data = await callApi('apiIssueItems', { rollNo: rollNo, cart: JSON.stringify(cart) });
+        alert(data.message);
+        cart = []; document.getElementById('cartList').innerHTML = '';
+        document.getElementById('checkoutBtn').style.display = 'none';
+        document.getElementById('checkoutBtn').innerText = "Checkout Now";
+        loadDashboard();
+    }
 
-  function toggleFineInput(index) {
-    const condition = document.getElementById(`cond_${index}`).value;
-    const fineInput = document.getElementById(`fine_${index}`);
-    if (condition === "Damaged") { fineInput.style.display = "block"; } else { fineInput.style.display = "none"; fineInput.value = ""; }
-  }
+    // --- RETURN LOGIC ---
+    async function fetchOpenTransactions(rollNo) {
+        let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
+        let container = document.getElementById('returnItemsContainer');
+        container.innerHTML = '';
+        if(!data || data.items.length === 0) return container.innerHTML = "<p>No open items.</p>";
+        
+        data.items.forEach(item => {
+            container.innerHTML += `
+            <div class="return-item" data-id="${item.transactionId}" data-itemid="${item.itemId}" data-qty="${item.qty}">
+                <p><b>${item.qty}x ${item.itemName}</b> (Due: ${item.dueDate})</p>
+                <select class="condSelect" onchange="toggleFine(this)">
+                    <option value="Good">Good</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Consumed">Consumed (e.g. broken ball)</option>
+                </select>
+                <input type="number" class="fineInput" placeholder="Fine PKR" style="display:none; width:100px;">
+                <hr>
+            </div>`;
+        });
+        document.getElementById('processReturnBtn').style.display = 'block';
+    }
 
-  function submitReturns() {
-    const checkboxes = document.querySelectorAll('.return-checkbox:checked');
-    if (checkboxes.length === 0) return alert("Please select at least one item to return.");
-    let returnsToProcess = [], validationPassed = true;
-    checkboxes.forEach(cb => {
-      let index = cb.getAttribute('data-index'); let item = openTransactions[index]; let condition = document.getElementById(`cond_${index}`).value; let fineAmount = document.getElementById(`fine_${index}`).value;
-      if (condition === "Damaged" && (!fineAmount || fineAmount <= 0)) { validationPassed = false; alert(`Please enter a fine amount for the damaged ${item.itemName}.`); }
-      returnsToProcess.push({ transactionId: item.transactionId, itemId: item.itemId, qty: item.qty, condition: condition, fineAmount: fineAmount || 0 });
-    });
-    if (!validationPassed) return;
-    document.getElementById("loading").style.display = "block";
-    const rollNo = document.getElementById("sRoll").innerText;
-    fetch(APPS_SCRIPT_URL + "?action=processReturns&rollNo=" + encodeURIComponent(rollNo) + "&returnData=" + encodeURIComponent(JSON.stringify(returnsToProcess)))
-      .then(res => res.json())
-      .then(data => { document.getElementById("loading").style.display = "none"; if (data.success) { alert("Returns processed!"); processStudentInput(); } else { alert("Error: " + data.message); } })
-      .catch(err => { document.getElementById("loading").style.display = "none"; alert("Failed to process return."); });
-  }
+    function toggleFine(selectElement) {
+        let fineInput = selectElement.nextElementSibling;
+        fineInput.style.display = selectElement.value === "Damaged" ? "inline-block" : "none";
+        fineInput.value = selectElement.value === "Damaged" ? "" : "0";
+    }
+
+    async function processReturns() {
+        let rollNo = document.getElementById('returnRollNo').value;
+        let returnData = [];
+        document.querySelectorAll('.return-item').forEach(div => {
+            returnData.push({
+                transactionId: div.dataset.id, itemId: div.dataset.itemid, qty: div.dataset.qty,
+                condition: div.querySelector('.condSelect').value,
+                fineAmount: div.querySelector('.fineInput').value || 0
+            });
+        });
+        document.getElementById('processReturnBtn').innerText = "Processing...";
+        
+        let data = await callApi('apiProcessReturns', { rollNo: rollNo, returns: JSON.stringify(returnData) });
+        alert(data.message);
+        document.getElementById('returnItemsContainer').innerHTML = '';
+        document.getElementById('processReturnBtn').style.display = 'none';
+        document.getElementById('processReturnBtn').innerText = "Process Returns";
+        loadDashboard();
+    }
+
+    async function payFine() {
+        let rollNo = document.getElementById('returnRollNo').value;
+        let data = await callApi('apiPayFine', { rollNo: rollNo });
+        alert(data.message);
+        document.getElementById('payFineBtn').style.display = 'none';
+        fetchStudent('return');
+    }
+
+    // --- RESTOCK LOGIC ---
+    function toggleRestockType() {
+        let type = document.getElementById('restockType').value;
+        document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
+        document.getElementById('newItemName').style.display = type === 'new' ? 'block' : 'none';
+    }
+
+    async function submitRestock() {
+        let isNew = document.getElementById('restockType').value === 'new';
+        let name = isNew ? document.getElementById('newItemName').value : document.getElementById('restockItemSelect').value;
+        let qty = document.getElementById('restockQty').value;
+        
+        let data = await callApi('restockItem', { name: name, qty: qty, isNew: isNew });
+        alert(data.message);
+        loadDashboard();
+    }
 </script>
 </body>
 </html>
