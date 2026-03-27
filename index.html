@@ -152,7 +152,7 @@
     // =========================================================
 
     let cart = [];
-    let currentInventoryData = []; // Store inventory to use for printing
+    let currentInventoryData = [];
 
     // --- API HELPER ---
     async function callApi(action, params = {}) {
@@ -187,7 +187,6 @@
         if(data && data.success) {
             document.getElementById('login-overlay').style.display = 'none';
             document.querySelectorAll('.admin-only').forEach(el => {
-                // Keep the flex layout for buttons if necessary, otherwise block
                 if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
                 else el.style.display = 'block';
             });
@@ -219,7 +218,7 @@
         let data = await callApi('apiGetInventory');
         if(!data) return;
         
-        currentInventoryData = data.items; // Save for printing
+        currentInventoryData = data.items;
         
         let tbody = document.getElementById('inventoryTableBody'); 
         let s1 = document.getElementById('issueItemSelect'); 
@@ -245,53 +244,64 @@
             return;
         }
 
-        // Generate today's date (DD/MM/YYYY) without time
         let today = new Date();
         let formattedDate = today.toLocaleDateString('en-GB');
 
-        // Build Table Rows
         let tableRows = '';
         currentInventoryData.forEach((item, index) => {
-            let issued = item.total - item.available; // Calculate items currently out
+            // Mapping values with fallbacks
+            let cat = item.category || "-";
+            let total = item.total !== undefined ? item.total : 0;
+            let avail = item.available !== undefined ? item.available : 0;
+            let dmg = item.damaged !== undefined ? item.damaged : 0;
+            let cons = item.consumed !== undefined ? item.consumed : 0;
+            let lost = item.lost !== undefined ? item.lost : 0;
+            let restock = item.lastRestock || "-";
+
             tableRows += `
                 <tr>
                     <td>${index + 1}</td>
-                    <td style="text-align: left; padding-left: 10px;">${item.name}</td>
-                    <td>${item.total}</td>
-                    <td>${item.available}</td>
-                    <td>${issued}</td>
+                    <td style="text-align: left; padding-left: 5px;">${item.name}</td>
+                    <td>${cat}</td>
+                    <td>${total}</td>
+                    <td>${avail}</td>
+                    <td>${dmg}</td>
+                    <td>${cons}</td>
+                    <td>${lost}</td>
+                    <td>${restock}</td>
                 </tr>
             `;
         });
 
-        // Open a new printable window
         let printWin = window.open('', '', 'width=800,height=900');
         printWin.document.write(`
             <html>
             <head>
                 <title>Sports Office Inventory Report</title>
                 <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; margin: 0; padding: 40px; }
-                    .header { text-align: center; margin-bottom: 20px; }
-                    .header img { height: 65px; margin-bottom: 5px; }
-                    .header h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
-                    .header h2 { font-size: 14px; margin: 5px 0 0 0; font-weight: normal; }
-                    .header h3 { font-size: 18px; margin: 25px 0 10px 0; text-decoration: underline; }
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; margin: 0; padding: 20px; }
+                    .header { text-align: center; margin-bottom: 15px; }
+                    .header img { height: 50px; margin-bottom: 5px; }
+                    .header h1 { font-size: 14px; margin: 0; text-transform: uppercase; }
+                    .header h2 { font-size: 12px; margin: 3px 0 0 0; font-weight: normal; }
+                    .header h3 { font-size: 16px; margin: 15px 0 10px 0; text-decoration: underline; }
                     
-                    .date-container { text-align: right; font-size: 14px; font-weight: bold; margin-bottom: 15px; }
+                    .date-container { text-align: right; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
                     
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 60px; font-size: 13px; }
-                    th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+                    /* Tightly packed table to fit Portrait */
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 11px; }
+                    th, td { border: 1px solid #000; padding: 6px 3px; text-align: center; word-wrap: break-word; }
                     th { background-color: #f2f2f2; font-weight: bold; }
                     
-                    .footer { display: flex; justify-content: flex-end; margin-top: 50px; }
-                    .signature-box { text-align: center; width: 250px; }
-                    .sig-line { border-top: 1px solid #000; margin-bottom: 8px; }
+                    .footer { display: flex; justify-content: flex-end; margin-top: 40px; }
+                    .signature-box { text-align: center; width: 220px; font-size: 12px; }
+                    .sig-line { border-top: 1px solid #000; margin-bottom: 5px; }
                     
-                    /* Force Portrait and Margins for Print */
+                    /* Force Print Settings */
                     @media print {
-                        @page { size: A4 portrait; margin: 15mm; }
+                        @page { size: A4 portrait; margin: 12mm; }
                         body { padding: 0; }
+                        tr { page-break-inside: avoid; }
                     }
                 </style>
             </head>
@@ -310,11 +320,15 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 8%;">Sr. No.</th>
-                            <th style="width: 44%; text-align: left; padding-left: 10px;">Item Name</th>
-                            <th style="width: 16%;">Total Owned</th>
-                            <th style="width: 16%;">Available</th>
-                            <th style="width: 16%;">Issued</th>
+                            <th style="width: 4%;">Sr</th>
+                            <th style="width: 22%; text-align: left; padding-left: 5px;">Item Name</th>
+                            <th style="width: 14%;">Category</th>
+                            <th style="width: 9%;">Total<br>Purchased</th>
+                            <th style="width: 9%;">Currently<br>Available</th>
+                            <th style="width: 9%;">Total<br>Damaged</th>
+                            <th style="width: 9%;">Total<br>Consumed</th>
+                            <th style="width: 9%;">Total<br>Lost</th>
+                            <th style="width: 15%;">Last Restock<br>Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -333,10 +347,9 @@
         `);
         
         printWin.document.close();
-        // Give the logo image 500ms to load, then trigger the print dialog automatically
         setTimeout(() => {
             printWin.print();
-        }, 500);
+        }, 800);
     }
 
     // --- ISSUE (EDITABLE CART) ---
