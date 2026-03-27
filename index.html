@@ -98,7 +98,6 @@
         
         <hr>
         <h4>Select Items</h4>
-        
         <div style="display: flex; gap: 10px;">
             <input list="issueItemOptions" id="issueItemSelect" placeholder="🔍 Type to search item..." style="flex: 2;">
             <datalist id="issueItemOptions"></datalist>
@@ -163,7 +162,10 @@
             <option value="existing">Restock Existing Item</option>
             <option value="new">Add New Item</option>
         </select>
-        <select id="restockItemSelect"></select>
+        
+        <input list="restockItemOptions" id="restockItemSelect" placeholder="🔍 Search existing item...">
+        <datalist id="restockItemOptions"></datalist>
+        
         <input type="text" id="newItemName" placeholder="Enter New Item Name" style="display:none;">
         <input type="number" id="restockQty" placeholder="Quantity to Add">
         <button class="btn btn-primary" onclick="submitRestock()">Update Inventory</button>
@@ -172,7 +174,10 @@
 
         <h3 style="color: #d9534f;">Report Office Loss</h3>
         <p style="font-size: 14px; color: #666; margin-top: -10px;">For items lost directly from the sports room (no student fine).</p>
-        <select id="officeLossItemSelect"></select>
+        
+        <input list="officeLossItemOptions" id="officeLossItemSelect" placeholder="🔍 Search item to mark lost...">
+        <datalist id="officeLossItemOptions"></datalist>
+        
         <input type="number" id="officeLossQty" placeholder="Quantity Lost" value="1" min="1">
         <button class="btn btn-danger" onclick="submitOfficeLoss()">Mark as Lost</button>
     </div>
@@ -260,21 +265,19 @@
         currentInventoryData = data.items;
         
         let tbody = document.getElementById('inventoryTableBody'); 
-        let s1 = document.getElementById('issueItemOptions'); // Changed to datalist
-        let s2 = document.getElementById('restockItemSelect');
-        let s3 = document.getElementById('officeLossItemSelect'); 
+        let s1 = document.getElementById('issueItemOptions'); 
+        let s2 = document.getElementById('restockItemOptions'); // Now datalist
+        let s3 = document.getElementById('officeLossItemOptions'); // Now datalist
         
         tbody.innerHTML = ''; s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
         
         data.items.forEach(item => {
             if(item.available > 0) {
                 tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-                
-                // Add to searchable datalist
                 s1.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
             }
-            s2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
-            s3.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
+            s2.innerHTML += `<option value="${item.name}">`;
+            s3.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
         });
     }
 
@@ -435,12 +438,10 @@
         }
     }
 
-    // UPDATED addToCart TO INCLUDE VALIDATION
     function addToCart() {
         let itemName = document.getElementById('issueItemSelect').value;
         let qty = parseInt(document.getElementById('issueQty').value);
 
-        // Validation check
         let selectedItem = currentInventoryData.find(i => i.name === itemName);
         
         if (!itemName) return alert("Please type or select an item from the list.");
@@ -450,7 +451,6 @@
         cart.push({ itemName: itemName, qty: qty });
         updateCartUI();
         
-        // Clear input fields after adding to cart
         document.getElementById('issueItemSelect').value = '';
         document.getElementById('issueQty').value = '1';
     }
@@ -565,23 +565,44 @@
     async function submitRestock() {
         let isNew = document.getElementById('restockType').value === 'new';
         let name = isNew ? document.getElementById('newItemName').value : document.getElementById('restockItemSelect').value;
-        let data = await callApi('restockItem', { name: name, qty: document.getElementById('restockQty').value, isNew: isNew });
+        let qty = document.getElementById('restockQty').value;
+
+        if (!name || !qty) return alert("Please fill out both the item name and quantity.");
+
+        // Validation: If restocking existing, make sure they picked a real item from the list
+        if (!isNew) {
+            let exists = currentInventoryData.some(i => i.name === name);
+            if (!exists) return alert("Please select a valid existing item from the list, or choose 'Add New Item' from the dropdown above.");
+        }
+
+        let data = await callApi('restockItem', { name: name, qty: qty, isNew: isNew });
         alert(data.message); 
+        
+        document.getElementById('restockItemSelect').value = '';
+        document.getElementById('newItemName').value = '';
+        document.getElementById('restockQty').value = '';
         loadDashboard();
     }
 
     async function submitOfficeLoss() {
         let name = document.getElementById('officeLossItemSelect').value;
-        let qty = document.getElementById('officeLossQty').value;
+        let qty = parseInt(document.getElementById('officeLossQty').value);
         
         if(!name || qty < 1) return alert("Please specify the item and quantity lost.");
         
+        // Validation: Ensure the item exists and we have enough to mark as lost
+        let selectedItem = currentInventoryData.find(i => i.name === name);
+        if (!selectedItem) return alert("Please select a valid item from the list.");
+        if (qty > selectedItem.available) return alert(`You cannot mark ${qty}x as lost. Only ${selectedItem.available}x available in stock.`);
+
         if(confirm(`Are you sure you want to mark ${qty}x ${name} as lost from the office? This cannot be undone.`)) {
             let btn = event.target;
             btn.innerText = "Processing...";
             let data = await callApi('apiMarkOfficeLoss', { itemName: name, qty: qty });
             alert(data.message);
+            
             btn.innerText = "Mark as Lost";
+            document.getElementById('officeLossItemSelect').value = '';
             document.getElementById('officeLossQty').value = "1";
             loadDashboard(); 
         }
