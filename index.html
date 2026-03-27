@@ -1,45 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAST NUCES Sports Inventory</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg-color: #f4f7f6; --text-color: #333; --card-bg: white; --border-color: #ddd; --header-bg: #003366; --tab-bg: #e9ecef; }
-        .dark-mode { --bg-color: #121212; --text-color: #f1f1f1; --card-bg: #1e1e1e; --border-color: #444; --header-bg: #001a33; --tab-bg: #333; }
-        
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); transition: 0.3s; }
-        .uni-header { background: var(--header-bg); color: white; text-align: center; padding: 20px; border-bottom: 5px solid #d9534f; position: relative; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f7f6; }
+        .uni-header { background: #003366; color: white; text-align: center; padding: 20px; border-bottom: 5px solid #d9534f; }
         .uni-logo { height: 70px; margin-bottom: 10px; filter: brightness(0) invert(1); }
-        .main-card { max-width: 900px; margin: 20px auto; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .main-card { max-width: 800px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         .overlay-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,51,102,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white; }
-        .login-box { background: var(--card-bg); padding: 30px; border-radius: 10px; color: var(--text-color); width: 80%; max-width: 350px; text-align: center; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; color: #333; width: 80%; max-width: 350px; text-align: center; }
         #scanner-modal { display: none; z-index: 3000; }
         #reader { width: 100%; max-width: 400px; background: white; padding: 10px; border-radius: 10px; color: black; }
-        
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid var(--border-color); border-radius: 5px; box-sizing: border-box; background: var(--card-bg); color: var(--text-color); }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
         .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; color: white;}
         .btn-primary { background: #003366; } .btn-primary:hover { background: #002244; }
-        .btn-success { background: #28a745; } .btn-danger { background: #d9534f; }
-        .btn-view { background: #6c757d; margin-top: 10px; }
+        .btn-success { background: #28a745; }
+        .btn-danger { background: #d9534f; }
+        .btn-view { background: #6c757d; margin-top: 20px; }
         .btn-print { background: #17a2b8; margin-top: 0; width: auto; padding: 8px 15px; }
-        .input-group { display: flex; gap: 10px; align-items: center; } .input-group input { margin: 0; } .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
+        .input-group { display: flex; gap: 10px; align-items: center; }
+        .input-group input { margin: 0; }
+        .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
         
-        .tab-bar { display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
-        .tab-btn { flex: 1; padding: 10px; text-align: center; background: var(--tab-bg); border-radius: 5px; cursor: pointer; font-weight: bold; color: var(--text-color); font-size: 14px;}
+        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
         .tab-btn.active { background: #003366; color: white; }
         .tab-btn.logout-btn { background: #d9534f; color: white; flex: 0.5; }
-        .tab-content { display: none; } .tab-content.active { display: block; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         .admin-only { display: none; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-        th { background-color: var(--tab-bg); }
-        .row-overdue { background-color: rgba(255, 193, 7, 0.2); }
-        
-        #theme-toggle { position: absolute; top: 20px; right: 20px; background: transparent; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .row-overdue { background-color: #ffeeba; }
     </style>
 </head>
 <body>
@@ -53,7 +50,6 @@
         <button class="btn btn-primary" onclick="checkLogin()">Login</button>
         <hr>
         <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
-        <button class="btn btn-success" style="margin-top: 10px;" onclick="enterStudentView()">👨‍🎓 Student Self-Service</button>
     </div>
 </div>
 
@@ -62,54 +58,31 @@
     <button class="btn btn-danger" style="max-width: 400px; margin-top: 20px;" onclick="stopScanner()">Cancel Scan</button>
 </div>
 
-<div id="student-modal" class="overlay-bg" style="display:none;">
-    <div class="main-card" style="width: 90%; max-width: 500px; color: var(--text-color); background: var(--card-bg);">
-        <h3 style="text-align: center;">Student Self-Service</h3>
-        <div class="input-group">
-            <input type="text" id="studentSelfRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
-            <button class="btn btn-primary" onclick="startScanner('self')">📷</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchSelfService()">Check My Status</button>
-        <hr>
-        <div id="selfServiceResults" style="margin-top: 15px;"></div>
-        <button class="btn btn-danger" style="margin-top: 20px;" onclick="exitStudentView()">Close / Go Back</button>
-    </div>
-</div>
-
 <div class="uni-header">
-    <button id="theme-toggle" onclick="toggleDarkMode()">🌙 Dark Mode</button>
     <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <h1 style="font-size: 22px; margin: 0;">FAST NUCES MULTAN</h1>
-    <h2 style="font-size: 18px; margin-top: 5px; color: #ffc107;">Sports Inventory System</h2>
+    <h1 style="font-size: 22px; margin: 0;">NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
+    <p style="margin: 5px 0; opacity: 0.9;">Multan Campus</p>
+    <h2 style="font-size: 18px; margin-top: 10px; color: #ffc107;">Sports Inventory System</h2>
 </div>
 
 <div class="main-card">
     <div class="tab-bar" id="tabBar">
-        <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Stock</div>
+        <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
         <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
         <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
-        <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Active</div>
+        <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Issued Items</div>
         <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock/Loss</div>
-        <div class="tab-btn admin-only" onclick="switchTab('history')">📜 History</div>
-        <div class="tab-btn admin-only" onclick="switchTab('fines')">💰 Fines</div>
-        <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Exit</div>
+        <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
     </div>
 
     <div id="dashboard" class="tab-content active">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <select id="categoryFilter" onchange="filterDashboard()" style="width: auto; margin:0; padding: 8px;">
-                <option value="All">All Categories</option>
-            </select>
-            <div>
-                <button class="btn btn-primary" style="width:auto; margin:0;" onclick="loadDashboard()">Refresh</button>
-                <button class="btn btn-print admin-only" onclick="generateReport()">📄 Print Report</button>
-            </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Available Inventory</h3>
+            <button class="btn btn-print admin-only" onclick="generateReport()">📄 Print Official Report</button>
         </div>
-        
-        <canvas id="inventoryChart" style="max-height: 200px; margin-bottom: 20px; display:none;"></canvas>
-
-        <table id="inventoryTable">
-            <thead><tr><th>Item</th><th>Category</th><th>Avail</th><th>Total</th></tr></thead>
+        <button class="btn btn-primary" style="margin-top: 15px;" onclick="loadDashboard()">Refresh Stock</button>
+        <table>
+            <thead><tr><th>Item Name</th><th>Category</th><th>Available</th><th>Total Owned</th></tr></thead>
             <tbody id="inventoryTableBody"></tbody>
         </table>
     </div>
@@ -117,42 +90,40 @@
     <div id="issue" class="tab-content">
         <h3>Issue Equipment</h3>
         <div class="input-group">
-            <input type="text" id="issueRollNo" placeholder="Roll No (e.g., 25M-1234)">
-            <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan</button>
+            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
+            <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
         </div>
         <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
-        <div id="issueStudentInfo" style="margin-top: 10px; color: #d9534f; font-weight:bold;"></div>
+        <div id="issueStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
         
         <hr>
-        <label style="font-size: 14px; font-weight: bold;">Expected Return Date (Optional):</label>
-        <input type="datetime-local" id="customDueDate">
-
-        <h4 style="margin-bottom: 5px;">Select Items</h4>
+        <h4>Select Items</h4>
         <div style="display: flex; gap: 10px;">
-            <input list="issueItemOptions" id="issueItemSelect" placeholder="🔍 Search item..." style="flex: 2;">
+            <input list="issueItemOptions" id="issueItemSelect" placeholder="🔍 Type to search item..." style="flex: 2;">
             <datalist id="issueItemOptions"></datalist>
             <input type="number" id="issueQty" placeholder="Qty" value="1" min="1" style="flex: 1;">
         </div>
+        
         <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
         
         <ul id="cartList" style="list-style: none; padding: 0;"></ul>
-        <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; font-size: 18px;">Checkout & Issue</button>
+        <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; width:100%; font-size: 18px;">Checkout Now</button>
     </div>
 
     <div id="return" class="tab-content">
-        <h3>Return Equipment & Fines</h3>
+        <h3>Return Equipment</h3>
         <div class="input-group">
-            <input type="text" id="returnRollNo" placeholder="Roll No (e.g., 25M-1234)">
-            <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan</button>
+            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
+            <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
         </div>
         <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
-        <div id="returnStudentInfo" style="margin-top: 10px; color: #d9534f; font-weight:bold;"></div>
+        <div id="returnStudentInfo" style="margin-top: 10px; color: #003366; font-weight:bold;"></div>
         
         <div id="finePaymentContainer" style="display:none; background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeeba;">
             <p style="margin: 0 0 5px 0; color: #856404; font-weight: bold;">Log Fine Payment</p>
             <div class="input-group">
                 <input type="number" id="finePayAmount" placeholder="Amount (PKR)">
-                <button class="btn btn-danger" onclick="payFine()">Pay Fine</button>
+                <button class="btn btn-danger" onclick="payFine()">Pay</button>
             </div>
         </div>
 
@@ -162,11 +133,25 @@
     </div>
 
     <div id="activeIssues" class="tab-content">
-        <button class="btn btn-primary" onclick="loadActiveIssues()">Refresh List</button>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Currently Issued Items</h3>
+            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadActiveIssues()">Refresh List</button>
+        </div>
+        <p style="font-size: 14px; color: #666;">All students currently holding items. Overdue items are highlighted.</p>
         <div style="overflow-x: auto;">
-            <table>
-                <thead><tr><th>Roll No</th><th>Name</th><th>Item Issued</th><th>Due Date</th><th>Status</th></tr></thead>
-                <tbody id="activeIssuesTableBody"></tbody>
+            <table style="min-width: 600px;">
+                <thead>
+                    <tr>
+                        <th>Roll No</th>
+                        <th>Name</th>
+                        <th>Item Issued</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="activeIssuesTableBody">
+                    <tr><td colspan="5" style="text-align:center;">Click "Refresh List" to load currently issued items.</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -196,31 +181,6 @@
         <input type="number" id="officeLossQty" placeholder="Quantity Lost" value="1" min="1">
         <button class="btn btn-danger" onclick="submitOfficeLoss()">Mark as Lost</button>
     </div>
-
-    <div id="history" class="tab-content">
-        <h3>Student History</h3>
-        <div class="input-group">
-            <input type="text" id="historyRollNo" placeholder="Enter Roll No">
-            <button class="btn btn-success" onclick="fetchHistory()">Search History</button>
-        </div>
-        <div style="overflow-x: auto;">
-            <table style="margin-top: 15px;">
-                <thead><tr><th>Item</th><th>Issued On</th><th>Returned On</th><th>Condition</th></tr></thead>
-                <tbody id="historyTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="fines" class="tab-content">
-        <h3>Defaulters & Clearances</h3>
-        <button class="btn btn-danger" onclick="loadFines()">Load Defaulters List</button>
-        <div style="overflow-x: auto;">
-            <table style="margin-top: 15px;">
-                <thead><tr><th>Roll No</th><th>Name</th><th>Total Owed (PKR)</th></tr></thead>
-                <tbody id="finesTableBody"></tbody>
-            </table>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -229,33 +189,38 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
     // =========================================================
 
-    let cart = []; let currentInventoryData = []; let chartInstance = null;
-
-    // Dark Mode Logic
-    function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        let btn = document.getElementById('theme-toggle');
-        btn.innerText = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
-    }
+    let cart = [];
+    let currentInventoryData = [];
 
     async function callApi(action, params = {}) {
         params.action = action;
         let url = new URL(SCRIPT_URL);
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        
         try {
-            let res = await fetch(url); return await res.json();
-        } catch (e) { alert("Network/Connection Error. Make sure Apps Script is fully deployed."); console.error(e); }
+            let response = await fetch(url);
+            return await response.json();
+        } catch (error) {
+            alert("Connection error. Ensure your GAS Web App is set to 'Anyone'.");
+            console.error(error);
+        }
     }
 
     function switchTab(tabId) {
-        document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
+        document.querySelector('.logout-btn').classList.remove('active');
+        
         if(tabId === 'dashboard') loadDashboard();
-        if(tabId === 'activeIssues') loadActiveIssues();
+        if(tabId === 'activeIssues') loadActiveIssues(); 
     }
 
     async function checkLogin() {
-        let u = document.getElementById('adminUser').value, p = document.getElementById('adminPass').value;
+        const u = document.getElementById('adminUser').value;
+        const p = document.getElementById('adminPass').value;
+        document.getElementById('adminUser').value = "Logging in...";
+        
         let data = await callApi('adminLogin', { user: u, pass: p });
         if(data && data.success) {
             document.getElementById('login-overlay').style.display = 'none';
@@ -263,104 +228,195 @@
                 if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
                 else el.style.display = 'block';
             });
+            document.getElementById('adminUser').value = '';
+            document.getElementById('adminPass').value = '';
             loadDashboard();
-        } else { alert("Login Failed."); }
+        } else {
+            alert(data ? data.message : "Error logging in");
+            document.getElementById('adminUser').value = u;
+        }
     }
-    function logout() { location.reload(); }
-    
+
+    function logout() {
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        switchTab('dashboard'); 
+    }
+
     function enterViewOnly() {
         document.getElementById('login-overlay').style.display = 'none';
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         loadDashboard();
     }
 
-    /* --- Student View Functions --- */
-    function enterStudentView() { document.getElementById('student-modal').style.display = 'flex'; document.getElementById('login-overlay').style.display = 'none'; }
-    function exitStudentView() { document.getElementById('student-modal').style.display = 'none'; document.getElementById('login-overlay').style.display = 'flex'; }
-    async function fetchSelfService() {
-        let r = document.getElementById('studentSelfRollNo').value;
-        let res = document.getElementById('selfServiceResults');
-        res.innerHTML = "Fetching...";
-        let data = await callApi('apiStudentSelfService', {rollNo: r});
-        if(!data || !data.success) return res.innerHTML = "Record not found.";
-        
-        let html = `<h4>Total Fines Owed: PKR ${data.fines}</h4><h5>Items you currently have:</h5><ul>`;
-        data.items.forEach(i => html += `<li>${i.qty}x ${i.itemName} (Due: ${i.dueDate})</li>`);
-        if(data.items.length===0) html += "<li>No items currently borrowed.</li>";
-        res.innerHTML = html + "</ul>";
-    }
-
-    /* --- Scanner --- */
     let html5QrcodeScanner; let currentScanMode = '';
     function startScanner(mode) {
-        currentScanMode = mode; document.getElementById('scanner-modal').style.display = 'flex';
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
-        html5QrcodeScanner.render((text) => { 
-            stopScanner(); 
-            if(currentScanMode === 'self') {
-                document.getElementById('studentSelfRollNo').value = text;
-                fetchSelfService();
-            } else {
-                document.getElementById(currentScanMode + 'RollNo').value = text; 
-                fetchStudent(currentScanMode); 
-            }
-        }, (err) => {});
+        currentScanMode = mode;
+        document.getElementById('scanner-modal').style.display = 'flex';
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render((text) => { stopScanner(); document.getElementById(currentScanMode + 'RollNo').value = text; fetchStudent(currentScanMode); }, (err) => {});
     }
     function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
 
-    /* --- Dashboard & Charts --- */
     async function loadDashboard() {
-        let data = await callApi('apiGetInventory'); if(!data) return;
+        let data = await callApi('apiGetInventory');
+        if(!data) return;
+        
         currentInventoryData = data.items;
         
-        let cats = new Set();
+        let tbody = document.getElementById('inventoryTableBody'); 
         let s1 = document.getElementById('issueItemOptions'); 
-        let s2 = document.getElementById('restockItemOptions'); 
-        let s3 = document.getElementById('officeLossItemOptions'); 
-        s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
+        let s2 = document.getElementById('restockItemOptions'); // Now datalist
+        let s3 = document.getElementById('officeLossItemOptions'); // Now datalist
+        
+        tbody.innerHTML = ''; s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
         
         data.items.forEach(item => {
-            cats.add(item.category);
             if(item.available > 0) {
-                s1.innerHTML += `<option value="${item.name}">Avail: ${item.available}</option>`;
+                tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
+                s1.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
             }
             s2.innerHTML += `<option value="${item.name}">`;
-            s3.innerHTML += `<option value="${item.name}">Avail: ${item.available}</option>`;
-        });
-
-        let filter = document.getElementById('categoryFilter');
-        if(filter.options.length === 1) cats.forEach(c => filter.innerHTML += `<option value="${c}">${c}</option>`);
-
-        filterDashboard();
-        renderChart(data.items);
-    }
-
-    function filterDashboard() {
-        let cat = document.getElementById('categoryFilter').value;
-        let tbody = document.getElementById('inventoryTableBody'); tbody.innerHTML = '';
-        currentInventoryData.forEach(item => {
-            if(cat === "All" || item.category === cat) {
-                tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-            }
+            s3.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
         });
     }
 
-    function renderChart(items) {
-        let ctx = document.getElementById('inventoryChart').getContext('2d');
-        document.getElementById('inventoryChart').style.display = 'block';
-        if(chartInstance) chartInstance.destroy();
+    async function loadActiveIssues() {
+        let tbody = document.getElementById('activeIssuesTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
         
-        let labels = items.slice(0, 8).map(i => i.name); // Top 8 items
-        let data = items.slice(0, 8).map(i => i.available);
+        let data = await callApi('apiGetActiveIssues');
+        
+        if(!data || !data.success) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data. Make sure backend is updated and deployed!</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        if(data.activeIssues.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:green; padding: 20px;"><b>🎉 No items are currently issued to anyone.</b></td></tr>';
+            return;
+        }
+        
+        data.activeIssues.forEach(item => {
+            let statusHtml = item.isOverdue 
+                ? `<b style="color:red;">Overdue (${item.daysLate} Days)</b>` 
+                : `<b style="color:green;">Issued (On Time)</b>`;
+            
+            let rowClass = item.isOverdue ? "row-overdue" : "";
+            let dateStyle = item.isOverdue ? "color:#d9534f; font-weight:bold;" : "";
 
-        chartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: labels, datasets: [{ label: 'Items Available in Stock', data: data, backgroundColor: '#17a2b8' }] },
-            options: { responsive: true, maintainAspectRatio: false }
+            tbody.innerHTML += `<tr class="${rowClass}">
+                <td><b>${item.rollNo}</b></td>
+                <td>${item.studentName}</td>
+                <td>${item.qty}x ${item.itemName}</td>
+                <td style="${dateStyle}">${item.dueDate}</td>
+                <td>${statusHtml}</td>
+            </tr>`;
         });
     }
 
-    // --- FULLY RESTORED FETCH STUDENT LOGIC ---
+    function generateReport() {
+        if(currentInventoryData.length === 0) {
+            alert("Please wait for the inventory to load first.");
+            return;
+        }
+
+        let today = new Date();
+        let formattedDate = today.toLocaleDateString('en-GB');
+
+        let tableRows = '';
+        currentInventoryData.forEach((item, index) => {
+            tableRows += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td style="text-align: left; padding-left: 5px;">${item.name}</td>
+                    <td>${item.category}</td>
+                    <td>${item.total}</td>
+                    <td>${item.available}</td>
+                    <td>${item.damaged}</td>
+                    <td>${item.consumed}</td>
+                    <td>${item.lost}</td>
+                    <td>${item.lastRestock}</td>
+                </tr>
+            `;
+        });
+
+        let printWin = window.open('', '', 'width=800,height=900');
+        printWin.document.write(`
+            <html>
+            <head>
+                <title>Sports Office Inventory Report</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; margin: 0; padding: 20px; }
+                    .header { text-align: center; margin-bottom: 15px; }
+                    .header img { height: 50px; margin-bottom: 5px; }
+                    .header h1 { font-size: 14px; margin: 0; text-transform: uppercase; }
+                    .header h2 { font-size: 12px; margin: 3px 0 0 0; font-weight: normal; }
+                    .header h3 { font-size: 16px; margin: 15px 0 10px 0; text-decoration: underline; }
+                    
+                    .date-container { text-align: right; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 11px; }
+                    th, td { border: 1px solid #000; padding: 6px 3px; text-align: center; word-wrap: break-word; }
+                    th { background-color: #f2f2f2; font-weight: bold; }
+                    
+                    .footer { display: flex; justify-content: flex-end; margin-top: 40px; }
+                    .signature-box { text-align: center; width: 220px; font-size: 12px; }
+                    .sig-line { border-top: 1px solid #000; margin-bottom: 5px; }
+                    
+                    @media print {
+                        @page { size: A4 portrait; margin: 12mm; }
+                        body { padding: 0; }
+                        tr { page-break-inside: avoid; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <img src="https://www.nu.edu.pk/Content/images/Logo.png" alt="FAST Logo">
+                    <h1>NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
+                    <h2>Multan Campus</h2>
+                    <h3>Sports Office Inventory Report</h3>
+                </div>
+                
+                <div class="date-container">
+                    Date: ${formattedDate}
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 4%;">Sr</th>
+                            <th style="width: 22%; text-align: left; padding-left: 5px;">Item Name</th>
+                            <th style="width: 14%;">Category</th>
+                            <th style="width: 9%;">Total<br>Purchased</th>
+                            <th style="width: 9%;">Currently<br>Available</th>
+                            <th style="width: 9%;">Total<br>Damaged</th>
+                            <th style="width: 9%;">Total<br>Consumed</th>
+                            <th style="width: 9%;">Total<br>Lost</th>
+                            <th style="width: 15%;">Last Restock<br>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    <div class="signature-box">
+                        <div class="sig-line"></div>
+                        <strong>Signature of Sports Officer</strong>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        
+        printWin.document.close();
+        setTimeout(() => { printWin.print(); }, 800);
+    }
+
     async function fetchStudent(mode) {
         let rollNo = document.getElementById(mode + 'RollNo').value;
         if(!rollNo) return alert("Enter Roll No");
@@ -382,10 +438,10 @@
         }
     }
 
-    // --- FULLY RESTORED ISSUE/CART LOGIC ---
     function addToCart() {
         let itemName = document.getElementById('issueItemSelect').value;
         let qty = parseInt(document.getElementById('issueQty').value);
+
         let selectedItem = currentInventoryData.find(i => i.name === itemName);
         
         if (!itemName) return alert("Please type or select an item from the list.");
@@ -394,6 +450,7 @@
 
         cart.push({ itemName: itemName, qty: qty });
         updateCartUI();
+        
         document.getElementById('issueItemSelect').value = '';
         document.getElementById('issueQty').value = '1';
     }
@@ -401,9 +458,10 @@
     function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
 
     function updateCartUI() {
-        let list = document.getElementById('cartList'); list.innerHTML = '';
+        let list = document.getElementById('cartList');
+        list.innerHTML = '';
         cart.forEach((item, index) => {
-            list.innerHTML += `<li style="background: var(--tab-bg); margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+            list.innerHTML += `<li style="background: #e9ecef; margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
                 <span><b>${item.qty}x</b> ${item.itemName}</span>
                 <span style="cursor: pointer; color: red; font-size: 18px;" onclick="removeFromCart(${index})" title="Remove">❌</span>
             </li>`;
@@ -413,22 +471,19 @@
 
     async function checkout() {
         document.getElementById('checkoutBtn').innerText = "Processing...";
-        let customDate = document.getElementById('customDueDate').value;
-        let data = await callApi('apiIssueItems', { rollNo: document.getElementById('issueRollNo').value, cart: JSON.stringify(cart), customDate: customDate });
+        let data = await callApi('apiIssueItems', { rollNo: document.getElementById('issueRollNo').value, cart: JSON.stringify(cart) });
         if(data && data.success) {
-            alert(data.message);
+            alert("Issued Successfully!");
             cart = []; updateCartUI();
             document.getElementById('issueRollNo').value = '';
             document.getElementById('issueStudentInfo').innerHTML = '';
-            document.getElementById('customDueDate').value = '';
             loadDashboard();
         } else {
             alert(data ? data.message : "Error issuing items.");
         }
-        document.getElementById('checkoutBtn').innerText = "Checkout & Issue";
+        document.getElementById('checkoutBtn').innerText = "Checkout Now";
     }
 
-    // --- FULLY RESTORED RETURN LOGIC ---
     async function fetchOpenTransactions(rollNo) {
         let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
         let container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
@@ -442,7 +497,7 @@
                 <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
                     <label>Return Qty:</label>
                     <input type="number" class="retQtyInput" value="${item.qty}" max="${item.qty}" min="0" style="width: 80px; margin: 0;">
-                    <span style="color:var(--text-color);">/ ${item.qty}</span>
+                    <span style="color:#666;">/ ${item.qty}</span>
                 </div>
 
                 <select class="condSelect" onchange="toggleFine(this)">
@@ -497,45 +552,14 @@
         
         let data = await callApi('apiPayFine', { rollNo: document.getElementById('returnRollNo').value, amount: amt });
         alert(data.message);
-        btn.innerText = "Pay Fine";
+        btn.innerText = "Pay";
         fetchStudent('return'); 
     }
 
-    // --- FULLY RESTORED ACTIVE ISSUES ---
-    async function loadActiveIssues() {
-        let tbody = document.getElementById('activeIssuesTableBody');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
-        
-        let data = await callApi('apiGetActiveIssues');
-        if(!data || !data.success) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data. Make sure backend is updated and deployed!</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = '';
-        if(data.activeIssues.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:green; padding: 20px;"><b>🎉 No items are currently issued to anyone.</b></td></tr>';
-            return;
-        }
-        
-        data.activeIssues.forEach(item => {
-            let statusHtml = item.isOverdue ? `<b style="color:red;">Overdue (${item.daysLate} Days)</b>` : `<b style="color:green;">Issued</b>`;
-            let rowClass = item.isOverdue ? "row-overdue" : "";
-            tbody.innerHTML += `<tr class="${rowClass}">
-                <td><b>${item.rollNo}</b></td>
-                <td>${item.studentName}</td>
-                <td>${item.qty}x ${item.itemName}</td>
-                <td>${item.dueDate}</td>
-                <td>${statusHtml}</td>
-            </tr>`;
-        });
-    }
-
-    // --- FULLY RESTORED RESTOCK / LOSS ---
     function toggleRestockType() {
         let type = document.getElementById('restockType').value;
-        document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'inline-block' : 'none';
-        document.getElementById('newItemName').style.display = type === 'new' ? 'inline-block' : 'none';
+        document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
+        document.getElementById('newItemName').style.display = type === 'new' ? 'block' : 'none';
     }
 
     async function submitRestock() {
@@ -545,9 +569,10 @@
 
         if (!name || !qty) return alert("Please fill out both the item name and quantity.");
 
+        // Validation: If restocking existing, make sure they picked a real item from the list
         if (!isNew) {
             let exists = currentInventoryData.some(i => i.name === name);
-            if (!exists) return alert("Please select a valid existing item from the list.");
+            if (!exists) return alert("Please select a valid existing item from the list, or choose 'Add New Item' from the dropdown above.");
         }
 
         let data = await callApi('restockItem', { name: name, qty: qty, isNew: isNew });
@@ -565,6 +590,7 @@
         
         if(!name || qty < 1) return alert("Please specify the item and quantity lost.");
         
+        // Validation: Ensure the item exists and we have enough to mark as lost
         let selectedItem = currentInventoryData.find(i => i.name === name);
         if (!selectedItem) return alert("Please select a valid item from the list.");
         if (qty > selectedItem.available) return alert(`You cannot mark ${qty}x as lost. Only ${selectedItem.available}x available in stock.`);
@@ -581,29 +607,6 @@
             loadDashboard(); 
         }
     }
-
-    // --- NEW: HISTORY & FINES ---
-    async function fetchHistory() {
-        let r = document.getElementById('historyRollNo').value;
-        if(!r) return alert("Please enter a Roll No");
-        let tbody = document.getElementById('historyTableBody'); tbody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
-        let data = await callApi('apiGetHistory', {rollNo: r});
-        tbody.innerHTML = '';
-        if(!data.history || data.history.length === 0) return tbody.innerHTML = "<tr><td colspan='4'>No history found.</td></tr>";
-        data.history.forEach(h => tbody.innerHTML += `<tr><td>${h.itemName}</td><td>${h.issueDate}</td><td>${h.returnDate || 'Pending'}</td><td>${h.condition || '-'}</td></tr>`);
-    }
-
-    async function loadFines() {
-        let tbody = document.getElementById('finesTableBody'); tbody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
-        let data = await callApi('apiGetFinesList');
-        tbody.innerHTML = '';
-        if(!data.fines || data.fines.length === 0) return tbody.innerHTML = "<tr><td colspan='3'>No students currently owe fines.</td></tr>";
-        data.fines.forEach(f => tbody.innerHTML += `<tr><td><b>${f.rollNo}</b></td><td>${f.name}</td><td style="color:red; font-weight:bold;">${f.amount}</td></tr>`);
-    }
-    
-    // Kept your report logic to ensure it doesn't break
-    function generateReport() { alert("Report functionality triggers here. (Same as previous setup)"); }
-
 </script>
 </body>
 </html>
