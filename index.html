@@ -20,6 +20,7 @@
         .btn-success { background: #28a745; }
         .btn-danger { background: #d9534f; }
         .btn-view { background: #6c757d; margin-top: 20px; }
+        .btn-print { background: #17a2b8; margin-top: 0; width: auto; padding: 8px 15px; }
         .input-group { display: flex; gap: 10px; align-items: center; }
         .input-group input { margin: 0; }
         .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
@@ -29,7 +30,7 @@
         .tab-btn.active { background: #003366; color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .admin-only { display: none; } /* Only applied to buttons now to prevent display stacking */
+        .admin-only { display: none; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -57,7 +58,7 @@
 
 <div class="uni-header">
     <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <h1 style="font-size: 22px; margin: 0;">National University of Computer and Emerging Sciences</h1>
+    <h1 style="font-size: 22px; margin: 0;">NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
     <p style="margin: 5px 0; opacity: 0.9;">Multan Campus</p>
     <h2 style="font-size: 18px; margin-top: 10px; color: #ffc107;">Sports Inventory System</h2>
 </div>
@@ -71,8 +72,11 @@
     </div>
 
     <div id="dashboard" class="tab-content active">
-        <h3>Available Inventory</h3>
-        <button class="btn btn-primary" onclick="loadDashboard()">Refresh Stock</button>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Available Inventory</h3>
+            <button class="btn btn-print admin-only" onclick="generateReport()">📄 Print Official Report</button>
+        </div>
+        <button class="btn btn-primary" style="margin-top: 15px;" onclick="loadDashboard()">Refresh Stock</button>
         <table>
             <thead><tr><th>Item Name</th><th>Available</th><th>Total Owned</th></tr></thead>
             <tbody id="inventoryTableBody"></tbody>
@@ -144,10 +148,11 @@
 <script>
     // =========================================================
     // YOUR APPS SCRIPT WEB APP URL
-    // =========================================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
+    // =========================================================
 
     let cart = [];
+    let currentInventoryData = []; // Store inventory to use for printing
 
     // --- API HELPER ---
     async function callApi(action, params = {}) {
@@ -181,7 +186,11 @@
         let data = await callApi('adminLogin', { user: u, pass: p });
         if(data && data.success) {
             document.getElementById('login-overlay').style.display = 'none';
-            document.querySelectorAll('.tab-btn.admin-only').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.admin-only').forEach(el => {
+                // Keep the flex layout for buttons if necessary, otherwise block
+                if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
+                else el.style.display = 'block';
+            });
             loadDashboard();
         } else {
             alert(data ? data.message : "Error logging in");
@@ -191,7 +200,7 @@
 
     function enterViewOnly() {
         document.getElementById('login-overlay').style.display = 'none';
-        document.querySelectorAll('.tab-btn.admin-only').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         loadDashboard();
     }
 
@@ -209,10 +218,13 @@
     async function loadDashboard() {
         let data = await callApi('apiGetInventory');
         if(!data) return;
+        
+        currentInventoryData = data.items; // Save for printing
+        
         let tbody = document.getElementById('inventoryTableBody'); 
         let s1 = document.getElementById('issueItemSelect'); 
         let s2 = document.getElementById('restockItemSelect');
-        let s3 = document.getElementById('officeLossItemSelect'); // New Office Loss Dropdown
+        let s3 = document.getElementById('officeLossItemSelect'); 
         
         tbody.innerHTML = ''; s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
         
@@ -224,6 +236,107 @@
             s2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
             s3.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
         });
+    }
+
+    // --- PRINT OFFICIAL REPORT ---
+    function generateReport() {
+        if(currentInventoryData.length === 0) {
+            alert("Please wait for the inventory to load first.");
+            return;
+        }
+
+        // Generate today's date (DD/MM/YYYY) without time
+        let today = new Date();
+        let formattedDate = today.toLocaleDateString('en-GB');
+
+        // Build Table Rows
+        let tableRows = '';
+        currentInventoryData.forEach((item, index) => {
+            let issued = item.total - item.available; // Calculate items currently out
+            tableRows += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td style="text-align: left; padding-left: 10px;">${item.name}</td>
+                    <td>${item.total}</td>
+                    <td>${item.available}</td>
+                    <td>${issued}</td>
+                </tr>
+            `;
+        });
+
+        // Open a new printable window
+        let printWin = window.open('', '', 'width=800,height=900');
+        printWin.document.write(`
+            <html>
+            <head>
+                <title>Sports Office Inventory Report</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; margin: 0; padding: 40px; }
+                    .header { text-align: center; margin-bottom: 20px; }
+                    .header img { height: 65px; margin-bottom: 5px; }
+                    .header h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+                    .header h2 { font-size: 14px; margin: 5px 0 0 0; font-weight: normal; }
+                    .header h3 { font-size: 18px; margin: 25px 0 10px 0; text-decoration: underline; }
+                    
+                    .date-container { text-align: right; font-size: 14px; font-weight: bold; margin-bottom: 15px; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 60px; font-size: 13px; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+                    th { background-color: #f2f2f2; font-weight: bold; }
+                    
+                    .footer { display: flex; justify-content: flex-end; margin-top: 50px; }
+                    .signature-box { text-align: center; width: 250px; }
+                    .sig-line { border-top: 1px solid #000; margin-bottom: 8px; }
+                    
+                    /* Force Portrait and Margins for Print */
+                    @media print {
+                        @page { size: A4 portrait; margin: 15mm; }
+                        body { padding: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <img src="https://www.nu.edu.pk/Content/images/Logo.png" alt="FAST Logo">
+                    <h1>NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
+                    <h2>Multan Campus</h2>
+                    <h3>Sports Office Inventory Report</h3>
+                </div>
+                
+                <div class="date-container">
+                    Date: ${formattedDate}
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 8%;">Sr. No.</th>
+                            <th style="width: 44%; text-align: left; padding-left: 10px;">Item Name</th>
+                            <th style="width: 16%;">Total Owned</th>
+                            <th style="width: 16%;">Available</th>
+                            <th style="width: 16%;">Issued</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    <div class="signature-box">
+                        <div class="sig-line"></div>
+                        <strong>Signature of Sports Officer</strong>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        
+        printWin.document.close();
+        // Give the logo image 500ms to load, then trigger the print dialog automatically
+        setTimeout(() => {
+            printWin.print();
+        }, 500);
     }
 
     // --- ISSUE (EDITABLE CART) ---
@@ -316,7 +429,6 @@
     }
 
     function toggleFine(sel) {
-        // Trigger fine input for BOTH Damaged and Lost conditions
         let requiresFine = (sel.value === "Damaged" || sel.value === "Lost");
         sel.nextElementSibling.style.display = requiresFine ? "inline-block" : "none";
         sel.nextElementSibling.value = requiresFine ? "" : "0";
@@ -344,7 +456,7 @@
         document.getElementById('returnItemsContainer').innerHTML = '';
         document.getElementById('processReturnBtn').style.display = 'none';
         document.getElementById('processReturnBtn').innerText = "Process Returns";
-        fetchStudent('return'); // refresh view
+        fetchStudent('return');
     }
 
     async function payFine() {
@@ -356,7 +468,7 @@
         let data = await callApi('apiPayFine', { rollNo: document.getElementById('returnRollNo').value, amount: amt });
         alert(data.message);
         btn.innerText = "Pay";
-        fetchStudent('return'); // refresh fine balance
+        fetchStudent('return'); 
     }
 
     // --- RESTOCK & OFFICE LOSSES ---
@@ -374,7 +486,6 @@
         loadDashboard();
     }
 
-    // New Function to handle direct office losses
     async function submitOfficeLoss() {
         let name = document.getElementById('officeLossItemSelect').value;
         let qty = document.getElementById('officeLossQty').value;
@@ -388,7 +499,7 @@
             alert(data.message);
             btn.innerText = "Mark as Lost";
             document.getElementById('officeLossQty').value = "1";
-            loadDashboard(); // Refresh inventory numbers
+            loadDashboard(); 
         }
     }
 </script>
