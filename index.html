@@ -25,9 +25,10 @@
         .input-group input { margin: 0; }
         .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
         
-        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
         .tab-btn.active { background: #003366; color: white; }
+        .tab-btn.logout-btn { background: #d9534f; color: white; flex: 0.5; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .admin-only { display: none; }
@@ -66,9 +67,10 @@
 <div class="main-card">
     <div class="tab-bar" id="tabBar">
         <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
-        <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue Items</div>
-        <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Returns</div>
-        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock & Losses</div>
+        <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
+        <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
+        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock/Loss</div>
+        <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
     </div>
 
     <div id="dashboard" class="tab-content active">
@@ -78,7 +80,7 @@
         </div>
         <button class="btn btn-primary" style="margin-top: 15px;" onclick="loadDashboard()">Refresh Stock</button>
         <table>
-            <thead><tr><th>Item Name</th><th>Available</th><th>Total Owned</th></tr></thead>
+            <thead><tr><th>Item Name</th><th>Category</th><th>Available</th><th>Total Owned</th></tr></thead>
             <tbody id="inventoryTableBody"></tbody>
         </table>
     </div>
@@ -154,7 +156,6 @@
     let cart = [];
     let currentInventoryData = [];
 
-    // --- API HELPER ---
     async function callApi(action, params = {}) {
         params.action = action;
         let url = new URL(SCRIPT_URL);
@@ -169,12 +170,12 @@
         }
     }
 
-    // --- NAVIGATION & LOGIN ---
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
-        event.target.classList.add('active');
+        // keep logout visually distinct
+        document.querySelector('.logout-btn').classList.remove('active');
         if(tabId === 'dashboard') loadDashboard();
     }
 
@@ -190,11 +191,20 @@
                 if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
                 else el.style.display = 'block';
             });
+            document.getElementById('adminUser').value = '';
+            document.getElementById('adminPass').value = '';
             loadDashboard();
         } else {
             alert(data ? data.message : "Error logging in");
             document.getElementById('adminUser').value = u;
         }
+    }
+
+    // NEW LOGOUT FUNCTION
+    function logout() {
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        switchTab('dashboard'); // reset to dashboard view for safety
     }
 
     function enterViewOnly() {
@@ -203,7 +213,6 @@
         loadDashboard();
     }
 
-    // --- QR SCANNER ---
     let html5QrcodeScanner; let currentScanMode = '';
     function startScanner(mode) {
         currentScanMode = mode;
@@ -213,7 +222,6 @@
     }
     function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
 
-    // --- DASHBOARD ---
     async function loadDashboard() {
         let data = await callApi('apiGetInventory');
         if(!data) return;
@@ -229,7 +237,7 @@
         
         data.items.forEach(item => {
             if(item.available > 0) {
-                tbody.innerHTML += `<tr><td>${item.name}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
+                tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
                 s1.innerHTML += `<option value="${item.name}">${item.name} (Avail: ${item.available})</option>`;
             }
             s2.innerHTML += `<option value="${item.name}">${item.name}</option>`;
@@ -237,7 +245,6 @@
         });
     }
 
-    // --- PRINT OFFICIAL REPORT ---
     function generateReport() {
         if(currentInventoryData.length === 0) {
             alert("Please wait for the inventory to load first.");
@@ -249,26 +256,17 @@
 
         let tableRows = '';
         currentInventoryData.forEach((item, index) => {
-            // Mapping values with fallbacks
-            let cat = item.category || "-";
-            let total = item.total !== undefined ? item.total : 0;
-            let avail = item.available !== undefined ? item.available : 0;
-            let dmg = item.damaged !== undefined ? item.damaged : 0;
-            let cons = item.consumed !== undefined ? item.consumed : 0;
-            let lost = item.lost !== undefined ? item.lost : 0;
-            let restock = item.lastRestock || "-";
-
             tableRows += `
                 <tr>
                     <td>${index + 1}</td>
                     <td style="text-align: left; padding-left: 5px;">${item.name}</td>
-                    <td>${cat}</td>
-                    <td>${total}</td>
-                    <td>${avail}</td>
-                    <td>${dmg}</td>
-                    <td>${cons}</td>
-                    <td>${lost}</td>
-                    <td>${restock}</td>
+                    <td>${item.category}</td>
+                    <td>${item.total}</td>
+                    <td>${item.available}</td>
+                    <td>${item.damaged}</td>
+                    <td>${item.consumed}</td>
+                    <td>${item.lost}</td>
+                    <td>${item.lastRestock}</td>
                 </tr>
             `;
         });
@@ -288,7 +286,6 @@
                     
                     .date-container { text-align: right; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
                     
-                    /* Tightly packed table to fit Portrait */
                     table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 11px; }
                     th, td { border: 1px solid #000; padding: 6px 3px; text-align: center; word-wrap: break-word; }
                     th { background-color: #f2f2f2; font-weight: bold; }
@@ -297,7 +294,6 @@
                     .signature-box { text-align: center; width: 220px; font-size: 12px; }
                     .sig-line { border-top: 1px solid #000; margin-bottom: 5px; }
                     
-                    /* Force Print Settings */
                     @media print {
                         @page { size: A4 portrait; margin: 12mm; }
                         body { padding: 0; }
@@ -347,12 +343,9 @@
         `);
         
         printWin.document.close();
-        setTimeout(() => {
-            printWin.print();
-        }, 800);
+        setTimeout(() => { printWin.print(); }, 800);
     }
 
-    // --- ISSUE (EDITABLE CART) ---
     async function fetchStudent(mode) {
         let rollNo = document.getElementById(mode + 'RollNo').value;
         if(!rollNo) return alert("Enter Roll No");
@@ -379,10 +372,7 @@
         updateCartUI();
     }
 
-    function removeFromCart(index) {
-        cart.splice(index, 1);
-        updateCartUI();
-    }
+    function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
 
     function updateCartUI() {
         let list = document.getElementById('cartList');
@@ -411,7 +401,6 @@
         document.getElementById('checkoutBtn').innerText = "Checkout Now";
     }
 
-    // --- RETURN & FINES ---
     async function fetchOpenTransactions(rollNo) {
         let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
         let container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
@@ -484,7 +473,6 @@
         fetchStudent('return'); 
     }
 
-    // --- RESTOCK & OFFICE LOSSES ---
     function toggleRestockType() {
         let type = document.getElementById('restockType').value;
         document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
