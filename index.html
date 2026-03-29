@@ -90,7 +90,7 @@
     <div id="issue" class="tab-content">
         <h3>Issue Equipment</h3>
         <div class="input-group">
-            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
+            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
             <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
         </div>
         <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
@@ -113,7 +113,7 @@
     <div id="return" class="tab-content">
         <h3>Return Equipment</h3>
         <div class="input-group">
-            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234)">
+            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
             <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
         </div>
         <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
@@ -418,14 +418,22 @@
     }
 
     async function fetchStudent(mode) {
-        let rollNo = document.getElementById(mode + 'RollNo').value;
-        if(!rollNo) return alert("Enter Roll No");
+        let inputValue = document.getElementById(mode + 'RollNo').value;
+        if(!inputValue) return alert("Enter Roll No or Scan QR");
+        
         document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
-        let data = await callApi('apiGetStudent', { rollNo: rollNo });
+        
+        // Change from 'rollNo' to 'qrData' to match the new backend logic
+        let data = await callApi('apiGetStudent', { qrData: inputValue });
+        
         document.querySelector(`#${mode} .btn-success`).innerText = mode === 'issue' ? "Find Student" : "Find Open Items";
         if(!data) return;
 
-        document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}`;
+        // CRITICAL UPDATE: Replace the long QR string in the input box with JUST the clean Roll No
+        document.getElementById(mode + 'RollNo').value = data.rollNo;
+
+        let autoRegBadge = data.message === "Auto-registered!" ? " <span style='color:green;'>(New Registration)</span>" : "";
+        document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}${autoRegBadge}`;
         
         if(mode === 'return') {
             if(data.fines > 0) {
@@ -434,7 +442,8 @@
             } else {
                 document.getElementById('finePaymentContainer').style.display = 'none';
             }
-            fetchOpenTransactions(rollNo);
+            // Pass the clean roll number to fetch open transactions
+            fetchOpenTransactions(data.rollNo);
         }
     }
 
@@ -471,7 +480,11 @@
 
     async function checkout() {
         document.getElementById('checkoutBtn').innerText = "Processing...";
-        let data = await callApi('apiIssueItems', { rollNo: document.getElementById('issueRollNo').value, cart: JSON.stringify(cart) });
+        
+        // Pass 'qrData' instead of 'rollNo'
+        let currentInput = document.getElementById('issueRollNo').value;
+        let data = await callApi('apiIssueItems', { qrData: currentInput, cart: JSON.stringify(cart) });
+        
         if(data && data.success) {
             alert("Issued Successfully!");
             cart = []; updateCartUI();
