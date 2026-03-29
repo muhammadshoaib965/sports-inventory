@@ -43,13 +43,24 @@
 
 <div id="login-overlay" class="overlay-bg">
     <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <div class="login-box">
+    
+    <div class="login-box" id="loginFormSection">
         <h3>Staff Login</h3>
         <input type="text" id="adminUser" placeholder="Username">
         <input type="password" id="adminPass" placeholder="Password">
         <button class="btn btn-primary" onclick="checkLogin()">Login</button>
+        <span style="color: #003366; font-size: 14px; text-decoration: underline; display: block; margin-top: 15px; cursor: pointer;" onclick="togglePasswordSection()">Change Password?</span>
         <hr>
         <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
+    </div>
+
+    <div class="login-box" id="changePasswordSection" style="display: none;">
+        <h3>Change Password</h3>
+        <input type="text" id="cpUser" placeholder="Username">
+        <input type="password" id="cpOldPass" placeholder="Old Password">
+        <input type="password" id="cpNewPass" placeholder="New Password">
+        <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
+        <button class="btn btn-danger" style="margin-top: 10px;" onclick="togglePasswordSection()">Cancel</button>
     </div>
 </div>
 
@@ -204,6 +215,50 @@
             alert("Connection error. Ensure your GAS Web App is set to 'Anyone'.");
             console.error(error);
         }
+    }
+
+    // --- NEW: Toggle between Login and Change Password sections ---
+    function togglePasswordSection() {
+        let loginSec = document.getElementById("loginFormSection");
+        let passSec = document.getElementById("changePasswordSection");
+        
+        if (passSec.style.display === "none" || passSec.style.display === "") {
+            loginSec.style.display = "none";
+            passSec.style.display = "block";
+        } else {
+            loginSec.style.display = "block";
+            passSec.style.display = "none";
+        }
+    }
+
+    // --- NEW: API call for Change Password ---
+    async function changeAdminPassword() {
+        let user = document.getElementById("cpUser").value;
+        let oldPass = document.getElementById("cpOldPass").value;
+        let newPass = document.getElementById("cpNewPass").value;
+
+        if (!user || !oldPass || !newPass) {
+            alert("Please fill in all fields to change your password.");
+            return;
+        }
+
+        let btn = document.querySelector("#changePasswordSection .btn-primary");
+        btn.innerText = "Updating...";
+        btn.disabled = true;
+
+        let data = await callApi('adminChangePassword', { user: user, oldPass: oldPass, newPass: newPass });
+        
+        if (data && data.success) {
+            alert("✅ " + data.message);
+            document.getElementById("cpOldPass").value = "";
+            document.getElementById("cpNewPass").value = "";
+            togglePasswordSection(); // Switch back to login view
+        } else {
+            alert("❌ " + (data ? data.message : "Error connecting to server."));
+        }
+
+        btn.innerText = "Update Password";
+        btn.disabled = false;
     }
 
     function switchTab(tabId) {
