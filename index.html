@@ -266,8 +266,8 @@
         
         let tbody = document.getElementById('inventoryTableBody'); 
         let s1 = document.getElementById('issueItemOptions'); 
-        let s2 = document.getElementById('restockItemOptions'); // Now datalist
-        let s3 = document.getElementById('officeLossItemOptions'); // Now datalist
+        let s2 = document.getElementById('restockItemOptions'); 
+        let s3 = document.getElementById('officeLossItemOptions'); 
         
         tbody.innerHTML = ''; s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
         
@@ -423,13 +423,11 @@
         
         document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
         
-        // Change from 'rollNo' to 'qrData' to match the new backend logic
         let data = await callApi('apiGetStudent', { qrData: inputValue });
         
         document.querySelector(`#${mode} .btn-success`).innerText = mode === 'issue' ? "Find Student" : "Find Open Items";
         if(!data) return;
 
-        // CRITICAL UPDATE: Replace the long QR string in the input box with JUST the clean Roll No
         document.getElementById(mode + 'RollNo').value = data.rollNo;
 
         let autoRegBadge = data.message === "Auto-registered!" ? " <span style='color:green;'>(New Registration)</span>" : "";
@@ -442,7 +440,6 @@
             } else {
                 document.getElementById('finePaymentContainer').style.display = 'none';
             }
-            // Pass the clean roll number to fetch open transactions
             fetchOpenTransactions(data.rollNo);
         }
     }
@@ -481,7 +478,6 @@
     async function checkout() {
         document.getElementById('checkoutBtn').innerText = "Processing...";
         
-        // Pass 'qrData' instead of 'rollNo'
         let currentInput = document.getElementById('issueRollNo').value;
         let data = await callApi('apiIssueItems', { qrData: currentInput, cart: JSON.stringify(cart) });
         
@@ -582,7 +578,6 @@
 
         if (!name || !qty) return alert("Please fill out both the item name and quantity.");
 
-        // Validation: If restocking existing, make sure they picked a real item from the list
         if (!isNew) {
             let exists = currentInventoryData.some(i => i.name === name);
             if (!exists) return alert("Please select a valid existing item from the list, or choose 'Add New Item' from the dropdown above.");
@@ -603,7 +598,6 @@
         
         if(!name || qty < 1) return alert("Please specify the item and quantity lost.");
         
-        // Validation: Ensure the item exists and we have enough to mark as lost
         let selectedItem = currentInventoryData.find(i => i.name === name);
         if (!selectedItem) return alert("Please select a valid item from the list.");
         if (qty > selectedItem.available) return alert(`You cannot mark ${qty}x as lost. Only ${selectedItem.available}x available in stock.`);
