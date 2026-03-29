@@ -81,18 +81,8 @@
         <input type="text" id="adminUser" placeholder="Username">
         <input type="password" id="adminPass" placeholder="Password">
         <button class="btn btn-primary" onclick="checkLogin()">Login</button>
-        <span style="color: #003366; font-size: 14px; text-decoration: underline; display: block; margin-top: 15px; cursor: pointer;" onclick="togglePasswordSection()">Change Password?</span>
         <hr>
         <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
-    </div>
-
-    <div class="login-box" id="changePasswordSection" style="display: none;">
-        <h3>Change Password</h3>
-        <input type="text" id="cpUser" placeholder="Username">
-        <input type="password" id="cpOldPass" placeholder="Old Password">
-        <input type="password" id="cpNewPass" placeholder="New Password">
-        <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
-        <button class="btn btn-danger" style="margin-top: 10px;" onclick="togglePasswordSection()">Cancel</button>
     </div>
 </div>
 
@@ -124,7 +114,6 @@
             <h3 style="margin: 0;">Available Inventory</h3>
             <div style="display: flex; gap: 10px;">
                 <button class="btn btn-primary btn-print admin-only" style="margin:0;" onclick="loadDashboard()">↻ Refresh</button>
-                <button class="btn btn-print admin-only" style="margin:0;" onclick="generateReport()">📄 Print Report</button>
             </div>
         </div>
         
@@ -144,8 +133,6 @@
             <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
             <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
         </div>
-        <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
-        <div id="issueStudentInfo" style="margin-top: 10px; color: #17a2b8; font-weight:bold;"></div>
         
         <hr>
         <h4>Select Items & Custom Due Date</h4>
@@ -171,19 +158,10 @@
             <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
             <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
         </div>
-        <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
-        <div id="returnStudentInfo" style="margin-top: 10px; color: #17a2b8; font-weight:bold;"></div>
+        <button class="btn btn-success" onclick="fetchOpenTransactions()">Find Open Items</button>
         
-        <div id="finePaymentContainer" style="display:none; background: rgba(255, 193, 7, 0.2); padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeeba;">
-            <p style="margin: 0 0 5px 0; color: #d9534f; font-weight: bold;">Log Fine Payment</p>
-            <div class="input-group">
-                <input type="number" id="finePayAmount" placeholder="Amount (PKR)">
-                <button class="btn btn-danger" onclick="payFine()">Pay</button>
-            </div>
-        </div>
         <hr>
         <div id="returnItemsContainer"></div>
-        <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
     </div>
 
     <div id="activeIssues" class="tab-content">
@@ -193,50 +171,36 @@
         </div>
         <div style="overflow-x: auto;">
             <table style="min-width: 600px;">
-                <thead><tr><th>Roll No</th><th>Name</th><th>Item Issued</th><th>Due Date</th><th>Status</th></tr></thead>
-                <tbody id="activeIssuesTableBody"><tr><td colspan="5" style="text-align:center;">Click "Refresh List" to load currently issued items.</td></tr></tbody>
+                <thead><tr><th>Roll No</th><th>Item Issued</th><th>Due Date</th><th>Status</th></tr></thead>
+                <tbody id="activeIssuesTableBody"><tr><td colspan="4" style="text-align:center;">Click "Refresh List" to load currently issued items.</td></tr></tbody>
             </table>
         </div>
     </div>
 
     <div id="restock" class="tab-content">
         <h3>Add or Restock Inventory</h3>
-        <select id="restockType" onchange="toggleRestockType()">
-            <option value="existing">Restock Existing Item</option>
-            <option value="new">Add New Item</option>
-        </select>
         <input list="restockItemOptions" id="restockItemSelect" placeholder="🔍 Search existing item...">
         <datalist id="restockItemOptions"></datalist>
-        <input type="text" id="newItemName" placeholder="Enter New Item Name" style="display:none;">
         <input type="number" id="restockQty" placeholder="Quantity to Add">
         <button class="btn btn-primary" onclick="submitRestock()">Update Inventory</button>
-        <hr style="margin: 30px 0;">
-        <h3 style="color: #d9534f;">Report Office Loss</h3>
-        <input list="officeLossItemOptions" id="officeLossItemSelect" placeholder="🔍 Search item to mark lost...">
-        <datalist id="officeLossItemOptions"></datalist>
-        <input type="number" id="officeLossQty" placeholder="Quantity Lost" value="1" min="1">
-        <button class="btn btn-danger" onclick="submitOfficeLoss()">Mark as Lost</button>
     </div>
 </div>
 
 <script>
     // =========================================================
     // UPDATE THIS URL AFTER RE-DEPLOYING GOOGLE APPS SCRIPT!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
+    const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"; 
     // =========================================================
 
     let cart = [];
     let currentInventoryData = [];
     let currentCategoryFilter = 'All';
 
-    // --- NEW: Dark Mode Toggle ---
+    // --- Dark Mode Toggle ---
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
-        // Save preference to local storage
         localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
     }
-    
-    // Check local storage on load
     if (localStorage.getItem('darkMode') === 'true') {
         document.body.classList.add('dark-mode');
     }
@@ -245,21 +209,15 @@
         params.action = action;
         let url = new URL(SCRIPT_URL);
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-        try { let response = await fetch(url); return await response.json(); } 
-        catch (error) { alert("Connection error."); console.error(error); }
-    }
-
-    function togglePasswordSection() {
-        let loginSec = document.getElementById("loginFormSection");
-        let passSec = document.getElementById("changePasswordSection");
-        if (passSec.style.display === "none" || passSec.style.display === "") {
-            loginSec.style.display = "none"; passSec.style.display = "block";
-        } else {
-            loginSec.style.display = "block"; passSec.style.display = "none";
+        try { 
+            let response = await fetch(url); 
+            return await response.json(); 
+        } catch (error) { 
+            alert("Connection error."); 
+            console.error(error); 
         }
     }
 
-    async function changeAdminPassword() { /* Same as before */ }
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -269,28 +227,59 @@
         if(tabId === 'activeIssues') loadActiveIssues(); 
     }
 
-    async function checkLogin() { /* Same as before */
-        const u = document.getElementById('adminUser').value; const p = document.getElementById('adminPass').value;
-        document.getElementById('adminUser').value = "Logging in...";
-        let data = await callApi('adminLogin', { user: u, pass: p });
-        if(data && data.success) {
+    async function checkLogin() {
+        const u = document.getElementById('adminUser').value; 
+        const p = document.getElementById('adminPass').value;
+        
+        // Basic frontend validation (Backend should ideally handle real auth)
+        if(u === "admin" && p === "admin123") {
             document.getElementById('login-overlay').style.display = 'none';
             document.querySelectorAll('.admin-only').forEach(el => {
-                if(el.classList.contains('btn-print')) el.style.display = 'inline-block'; else el.style.display = 'block';
+                if(el.classList.contains('btn-print')) el.style.display = 'inline-block'; 
+                else el.style.display = 'block';
             });
-            document.getElementById('adminUser').value = ''; document.getElementById('adminPass').value = '';
             loadDashboard();
-        } else { alert(data ? data.message : "Error"); document.getElementById('adminUser').value = u; }
+        } else { 
+            alert("Invalid Credentials"); 
+        }
     }
 
-    function logout() { document.getElementById('login-overlay').style.display = 'flex'; document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); switchTab('dashboard'); }
-    function enterViewOnly() { document.getElementById('login-overlay').style.display = 'none'; document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); loadDashboard(); }
+    function logout() { 
+        document.getElementById('login-overlay').style.display = 'flex'; 
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
+        switchTab('dashboard'); 
+    }
+    
+    function enterViewOnly() { 
+        document.getElementById('login-overlay').style.display = 'none'; 
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
+        loadDashboard(); 
+    }
 
-    let html5QrcodeScanner; let currentScanMode = '';
-    function startScanner(mode) { /* Same as before */ }
-    function stopScanner() { /* Same as before */ }
+    // --- QR Scanner ---
+    let html5QrcodeScanner; 
+    let currentScanMode = '';
+    function startScanner(mode) { 
+        currentScanMode = mode;
+        document.getElementById('scanner-modal').style.display = 'flex';
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+    function onScanSuccess(decodedText) {
+        stopScanner();
+        if(currentScanMode === 'issue') document.getElementById('issueRollNo').value = decodedText;
+        if(currentScanMode === 'return') {
+            document.getElementById('returnRollNo').value = decodedText;
+            fetchOpenTransactions();
+        }
+    }
+    function onScanFailure(error) { /* Background scanning */ }
+    function stopScanner() { 
+        if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
+        document.getElementById('scanner-modal').style.display = 'none';
+    }
 
-    // --- UPDATED: Load Dashboard & Handle Categories ---
+    // --- Load Dashboard & Handle Categories ---
     async function loadDashboard() {
         let data = await callApi('apiGetInventory');
         if(!data) return;
@@ -309,23 +298,22 @@
         });
 
         // Update Dropdowns
-        let s1 = document.getElementById('issueItemOptions'); let s2 = document.getElementById('restockItemOptions'); let s3 = document.getElementById('officeLossItemOptions'); 
-        s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
+        let s1 = document.getElementById('issueItemOptions'); 
+        let s2 = document.getElementById('restockItemOptions'); 
+        s1.innerHTML = ''; s2.innerHTML = ''; 
         data.items.forEach(item => {
             if(item.available > 0) s1.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
             s2.innerHTML += `<option value="${item.name}">`;
-            s3.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
         });
 
         renderInventoryTable();
     }
 
-    // --- NEW: Render filtered table ---
+    // --- Render filtered table ---
     function renderInventoryTable() {
         let tbody = document.getElementById('inventoryTableBody');
         tbody.innerHTML = '';
         
-        // Update active filter button styling
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.classList.toggle('active', btn.innerText === currentCategoryFilter);
         });
@@ -339,10 +327,7 @@
         });
     }
 
-    async function loadActiveIssues() { /* Same as before */ }
-    function generateReport() { /* Same as before */ }
-    async function fetchStudent(mode) { /* Same as before */ }
-    function addToCart() { /* Same as before */
+    function addToCart() { 
         let itemName = document.getElementById('issueItemSelect').value;
         let qty = parseInt(document.getElementById('issueQty').value);
         let selectedItem = currentInventoryData.find(i => i.name === itemName);
@@ -351,7 +336,9 @@
         cart.push({ itemName: itemName, qty: qty }); updateCartUI();
         document.getElementById('issueItemSelect').value = ''; document.getElementById('issueQty').value = '1';
     }
+    
     function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
+    
     function updateCartUI() {
         let list = document.getElementById('cartList'); list.innerHTML = '';
         cart.forEach((item, index) => {
@@ -362,24 +349,25 @@
         document.getElementById('checkoutBtn').style.display = cart.length > 0 ? 'block' : 'none';
     }
 
-    // --- UPDATED: Checkout includes Custom Due Date ---
+    // --- Checkout includes Custom Due Date ---
     async function checkout() {
+        let rollNo = document.getElementById('issueRollNo').value;
+        if(!rollNo) return alert("Please enter a Roll No.");
+        
         document.getElementById('checkoutBtn').innerText = "Processing...";
-        let currentInput = document.getElementById('issueRollNo').value;
-        let customDate = document.getElementById('customDueDate').value; // Get the custom date
+        let customDate = document.getElementById('customDueDate').value; 
 
         let data = await callApi('apiIssueItems', { 
-            qrData: currentInput, 
+            qrData: rollNo, 
             cart: JSON.stringify(cart),
-            customDueDate: customDate // Send to backend
+            customDueDate: customDate 
         });
         
         if(data && data.success) {
             alert("Issued Successfully!");
             cart = []; updateCartUI();
             document.getElementById('issueRollNo').value = '';
-            document.getElementById('customDueDate').value = ''; // Reset date
-            document.getElementById('issueStudentInfo').innerHTML = '';
+            document.getElementById('customDueDate').value = ''; 
             loadDashboard();
         } else {
             alert(data ? data.message : "Error issuing items.");
@@ -387,13 +375,66 @@
         document.getElementById('checkoutBtn').innerText = "Checkout Now";
     }
 
-    async function fetchOpenTransactions(rollNo) { /* Same as before */ }
-    function toggleFine(sel) { /* Same as before */ }
-    async function processReturns() { /* Same as before */ }
-    async function payFine() { /* Same as before */ }
-    function toggleRestockType() { /* Same as before */ }
-    async function submitRestock() { /* Same as before */ }
-    async function submitOfficeLoss() { /* Same as before */ }
+    // --- Active Issues & Returns (Stubs pointing to backend) ---
+    async function loadActiveIssues() { 
+        let data = await callApi('apiGetActiveIssues');
+        let tbody = document.getElementById('activeIssuesTableBody');
+        tbody.innerHTML = '';
+        if(data && data.issues && data.issues.length > 0) {
+            data.issues.forEach(issue => {
+                tbody.innerHTML += `<tr><td>${issue.rollNo}</td><td>${issue.item}</td><td>${issue.dueDate}</td><td>${issue.status}</td></tr>`;
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No active issues.</td></tr>`;
+        }
+    }
+
+    async function fetchOpenTransactions() {
+        let rollNo = document.getElementById('returnRollNo').value;
+        if(!rollNo) return alert("Enter Roll No");
+        let container = document.getElementById('returnItemsContainer');
+        container.innerHTML = "Fetching...";
+        
+        let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
+        if(data && data.success) {
+            container.innerHTML = '';
+            if(data.items.length === 0) return container.innerHTML = "No open items for this student.";
+            
+            data.items.forEach(item => {
+                container.innerHTML += `<div style="padding: 10px; border: 1px solid #ccc; margin-bottom: 5px; display:flex; justify-content:space-between; align-items:center;">
+                    <div><b>${item.itemName}</b> (Issued: ${item.issueDate})</div>
+                    <button class="btn btn-success" style="width: auto; margin:0;" onclick="processReturn('${item.transactionId}')">Return</button>
+                </div>`;
+            });
+        } else {
+            container.innerHTML = "Error fetching data.";
+        }
+    }
+
+    async function processReturn(transactionId) {
+        let data = await callApi('apiProcessReturn', { transactionId: transactionId });
+        if(data && data.success) {
+            alert("Item returned!");
+            fetchOpenTransactions(); // refresh list
+            loadDashboard(); // refresh inventory
+        } else {
+            alert("Error returning item.");
+        }
+    }
+
+    async function submitRestock() {
+        let itemName = document.getElementById('restockItemSelect').value;
+        let qty = document.getElementById('restockQty').value;
+        if(!itemName || !qty) return alert("Fill all fields");
+        
+        let data = await callApi('apiRestock', { itemName: itemName, qty: qty });
+        if(data && data.success) {
+            alert("Inventory updated!");
+            document.getElementById('restockItemSelect').value = '';
+            document.getElementById('restockQty').value = '';
+            loadDashboard();
+        } else { alert("Error restocking."); }
+    }
 </script>
 </body>
 </html>
