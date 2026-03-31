@@ -33,18 +33,20 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .admin-only { display: none; }
+        .public-only { display: none; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
         th { background-color: rgba(0,0,0,0.05); }
         .row-overdue { background-color: rgba(255, 193, 7, 0.2); }
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 12px; color: white; font-weight: bold;}
+        .badge-open { background: #d9534f; }
+        .badge-closed { background: #28a745; }
 
-        /* ✅ PHASE 1: Category Filter Buttons */
         .filter-container { margin-top: 15px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
         .filter-btn { padding: 5px 12px; border: 1px solid var(--border-color); border-radius: 20px; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-size: 14px;}
         .filter-btn.active-filter { background: #003366; color: white; border-color: #003366; }
 
-        /* ✅ PHASE 1: Dark Mode Styles */
         body.dark-mode { --bg-color: #121212; --card-bg: #1e1e1e; --text-main: #e0e0e0; --border-color: #444; --input-bg: #333; }
         .dark-mode .tab-btn { background: #333; color: #aaa; }
         .dark-mode .tab-btn.active { background: #003366; color: white; }
@@ -98,8 +100,12 @@
         <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
         <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
         <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Issued Items</div>
-        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock/Loss</div>
+        <div class="tab-btn admin-only" onclick="switchTab('history')">📜 History</div>
+        <div class="tab-btn admin-only" onclick="switchTab('fines')">💰 Fines</div>
+        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock</div>
+        <div class="tab-btn public-only" onclick="switchTab('studentPortal')">🧑‍🎓 My Portal</div>
         <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
+        <div class="tab-btn public-only logout-btn" onclick="logout()">🔙 Back</div>
     </div>
 
     <div id="dashboard" class="tab-content active">
@@ -192,6 +198,67 @@
         </div>
     </div>
 
+    <div id="history" class="tab-content">
+        <h3>Student Transaction History</h3>
+        <div class="input-group">
+            <input type="text" id="historyRollNo" placeholder="Enter Roll No or Scan QR">
+            <button class="btn btn-primary" onclick="startScanner('history')">📷 Scan QR</button>
+        </div>
+        <button class="btn btn-success" onclick="fetchStudentHistory()">Search History</button>
+        
+        <h4 style="margin-top: 20px;">Borrowing Records</h4>
+        <div style="overflow-x: auto;">
+            <table style="min-width: 600px; font-size: 14px;">
+                <thead><tr><th>Item</th><th>Qty</th><th>Issued</th><th>Returned</th><th>Condition</th><th>Status</th></tr></thead>
+                <tbody id="historyTransTableBody"><tr><td colspan="6" style="text-align:center;">Search a student to view history.</td></tr></tbody>
+            </table>
+        </div>
+
+        <h4 style="margin-top: 20px;">Fines & Damages</h4>
+        <div style="overflow-x: auto;">
+            <table style="min-width: 600px; font-size: 14px;">
+                <thead><tr><th>Date</th><th>Item</th><th>Description</th><th>Amount (PKR)</th><th>Status</th></tr></thead>
+                <tbody id="historyFinesTableBody"><tr><td colspan="5" style="text-align:center;">No fines to display.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="fines" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Outstanding Fines</h3>
+            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadPendingFines()">Refresh List</button>
+        </div>
+        <p style="font-size: 14px; opacity: 0.8;">Students who currently owe money to the sports office.</p>
+        <div style="overflow-x: auto;">
+            <table style="min-width: 400px;">
+                <thead><tr><th>Roll No</th><th>Name</th><th>Amount Due</th><th>Action</th></tr></thead>
+                <tbody id="pendingFinesTableBody">
+                    <tr><td colspan="4" style="text-align:center;">Click "Refresh List" to load data.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="studentPortal" class="tab-content">
+        <h3>Student Portal</h3>
+        <p style="font-size: 14px; opacity: 0.8;">Scan your Smart Card QR to securely view your issued items and fines.</p>
+        <div class="input-group">
+            <input type="text" id="studentPortalRollNo" placeholder="Click 'Scan QR' to read card" readonly>
+            <button class="btn btn-primary" onclick="startScanner('studentPortal')">📷 Scan Smart Card</button>
+        </div>
+        <button class="btn btn-success" style="display:none;" id="portalFetchBtn" onclick="fetchStudentDashboard()">View My Status</button>
+        
+        <div id="studentPortalInfo" style="margin-top: 20px; font-size: 18px; font-weight: bold; text-align: center; color: #003366;"></div>
+        
+        <div id="studentPortalItemsSection" style="display: none;">
+            <h4 style="margin-top: 20px;">Your Currently Issued Items</h4>
+            <table style="font-size: 14px;">
+                <thead><tr><th>Item</th><th>Qty</th><th>Due Date</th></tr></thead>
+                <tbody id="studentPortalItemsTable"></tbody>
+            </table>
+        </div>
+    </div>
+
     <div id="restock" class="tab-content">
         <h3>Add or Restock Inventory</h3>
         <select id="restockType" onchange="toggleRestockType()">
@@ -220,16 +287,12 @@
 </div>
 
 <script>
-    // =========================================================
-    // YOUR APPS SCRIPT WEB APP URL
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
-    // =========================================================
 
     let cart = [];
     let currentInventoryData = [];
-    let currentCategoryFilter = 'All'; // Track active filter
+    let currentCategoryFilter = 'All'; 
 
-    // ✅ PHASE 1: Load Dark Mode preference on startup
     window.onload = () => {
         if (localStorage.getItem('darkMode') === 'true') {
             document.body.classList.add('dark-mode');
@@ -237,7 +300,6 @@
         }
     };
 
-    // ✅ PHASE 1: Toggle Dark Mode function
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
         let isDark = document.body.classList.contains('dark-mode');
@@ -301,11 +363,18 @@
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        document.querySelector('.logout-btn').classList.remove('active');
+        
+        let targetTab = document.getElementById(tabId);
+        if(targetTab) targetTab.classList.add('active');
+        
+        let targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick') === `switchTab('${tabId}')`);
+        if(targetBtn) targetBtn.classList.add('active');
+        
+        document.querySelectorAll('.logout-btn').forEach(btn => btn.classList.remove('active'));
         
         if(tabId === 'dashboard') loadDashboard();
         if(tabId === 'activeIssues') loadActiveIssues(); 
+        if(tabId === 'fines') loadPendingFines();
     }
 
     async function checkLogin() {
@@ -320,6 +389,7 @@
                 if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
                 else el.style.display = 'block';
             });
+            document.querySelectorAll('.public-only').forEach(el => el.style.display = 'none');
             document.getElementById('adminUser').value = '';
             document.getElementById('adminPass').value = '';
             loadDashboard();
@@ -332,13 +402,21 @@
     function logout() {
         document.getElementById('login-overlay').style.display = 'flex';
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.public-only').forEach(el => el.style.display = 'none');
+        
+        // Reset inputs to protect privacy
+        document.getElementById('studentPortalRollNo').value = "";
+        document.getElementById('studentPortalInfo').innerHTML = "";
+        document.getElementById('studentPortalItemsSection').style.display = "none";
+        
         switchTab('dashboard'); 
     }
 
     function enterViewOnly() {
         document.getElementById('login-overlay').style.display = 'none';
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        loadDashboard();
+        document.querySelectorAll('.public-only').forEach(el => el.style.display = 'block');
+        switchTab('dashboard');
     }
 
     let html5QrcodeScanner; let currentScanMode = '';
@@ -346,11 +424,20 @@
         currentScanMode = mode;
         document.getElementById('scanner-modal').style.display = 'flex';
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render((text) => { stopScanner(); document.getElementById(currentScanMode + 'RollNo').value = text; fetchStudent(currentScanMode); }, (err) => {});
+        html5QrcodeScanner.render((text) => { 
+            stopScanner(); 
+            document.getElementById(currentScanMode + 'RollNo').value = text; 
+            if(currentScanMode === 'studentPortal') {
+                fetchStudentDashboard();
+            } else if (currentScanMode === 'history') {
+                fetchStudentHistory();
+            } else {
+                fetchStudent(currentScanMode); 
+            }
+        }, (err) => {});
     }
     function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
 
-    // ✅ PHASE 1: Build Filters dynamically based on Inventory Data
     function renderCategoryFilters(items) {
         let categories = new Set();
         items.forEach(i => { if(i.category) categories.add(i.category); });
@@ -364,7 +451,6 @@
         });
     }
 
-    // ✅ PHASE 1: Apply chosen filter to table
     function applyFilter(category) {
         currentCategoryFilter = category;
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -373,7 +459,6 @@
         renderInventoryTable();
     }
 
-    // ✅ PHASE 1: Split out table rendering so filters can trigger it without re-fetching
     function renderInventoryTable() {
         let tbody = document.getElementById('inventoryTableBody');
         tbody.innerHTML = '';
@@ -389,8 +474,8 @@
         if(!data) return;
         
         currentInventoryData = data.items;
-        renderCategoryFilters(currentInventoryData); // Render Filters
-        renderInventoryTable(); // Render Table
+        renderCategoryFilters(currentInventoryData); 
+        renderInventoryTable(); 
         
         let s1 = document.getElementById('issueItemOptions'); 
         let s2 = document.getElementById('restockItemOptions'); 
@@ -410,7 +495,6 @@
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
         
         let data = await callApi('apiGetActiveIssues');
-        
         if(!data || !data.success) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data. Make sure backend is updated and deployed!</td></tr>';
             return;
@@ -438,6 +522,108 @@
                 <td>${statusHtml}</td>
             </tr>`;
         });
+    }
+
+    // ✅ PHASE 2: Fetch Student History 
+    async function fetchStudentHistory() {
+        let rollNo = document.getElementById('historyRollNo').value;
+        if(!rollNo) return alert("Please enter or scan a Roll No.");
+        
+        document.querySelector("#history .btn-success").innerText = "Searching...";
+        let data = await callApi('apiGetStudentHistory', { rollNo: rollNo });
+        document.querySelector("#history .btn-success").innerText = "Search History";
+        
+        if(!data || !data.success) return alert("Failed to fetch history.");
+        
+        let tBody = document.getElementById('historyTransTableBody');
+        tBody.innerHTML = '';
+        if(data.transactions.length === 0) {
+            tBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No borrowing history found.</td></tr>';
+        } else {
+            data.transactions.forEach(t => {
+                let badge = t.status.toUpperCase() === 'OPEN' ? '<span class="badge badge-open">OPEN</span>' : '<span class="badge badge-closed">CLOSED</span>';
+                tBody.innerHTML += `<tr><td>${t.item}</td><td>${t.qty}</td><td>${t.issueDate}</td><td>${t.returnDate}</td><td>${t.condition}</td><td>${badge}</td></tr>`;
+            });
+        }
+
+        let fBody = document.getElementById('historyFinesTableBody');
+        fBody.innerHTML = '';
+        if(data.fines.length === 0) {
+            fBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No fines or damages recorded.</td></tr>';
+        } else {
+            data.fines.forEach(f => {
+                let amtColor = f.status.toUpperCase() === 'PAID' ? 'color:green;' : 'color:#d9534f; font-weight:bold;';
+                fBody.innerHTML += `<tr><td>${new Date(f.date).toLocaleDateString()}</td><td>${f.item}</td><td>${f.desc}</td><td style="${amtColor}">${f.amount}</td><td>${f.status}</td></tr>`;
+            });
+        }
+    }
+
+    // ✅ PHASE 2: Load Pending Fines
+    async function loadPendingFines() {
+        let tbody = document.getElementById('pendingFinesTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
+        
+        let data = await callApi('apiGetPendingFines');
+        tbody.innerHTML = '';
+        
+        if(!data || !data.success || data.debtors.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:green; font-weight:bold;">🎉 All students are clear! No outstanding fines.</td></tr>';
+            return;
+        }
+
+        data.debtors.forEach(d => {
+            tbody.innerHTML += `<tr>
+                <td><b>${d.rollNo}</b></td>
+                <td>${d.name}</td>
+                <td style="color:#d9534f; font-weight:bold;">PKR ${d.fines}</td>
+                <td><button class="btn btn-primary" style="margin:0; padding: 5px 10px;" onclick="goToPayFine('${d.rollNo}')">Settle</button></td>
+            </tr>`;
+        });
+    }
+
+    // ✅ PHASE 2: Link Fines tab to Return/Pay tab
+    function goToPayFine(rollNo) {
+        switchTab('return');
+        document.getElementById('returnRollNo').value = rollNo;
+        fetchStudent('return');
+    }
+
+    // ✅ PHASE 2: Student Self-Service Dashboard
+    async function fetchStudentDashboard() {
+        let qrData = document.getElementById('studentPortalRollNo').value;
+        if(!qrData) return alert("Please scan your Smart Card.");
+        
+        document.getElementById('studentPortalInfo').innerHTML = "Loading your data securely...";
+        
+        let data = await callApi('apiGetStudentDashboard', { qrData: qrData });
+        if(!data || !data.success) {
+            document.getElementById('studentPortalInfo').innerHTML = "<span style='color:red;'>Student not found. Please contact the sports office.</span>";
+            return;
+        }
+
+        let fineColor = data.fines > 0 ? "#d9534f" : "#28a745";
+        let fineText = data.fines > 0 ? `Unpaid Fines: PKR ${data.fines}` : `No Outstanding Fines`;
+        
+        document.getElementById('studentPortalInfo').innerHTML = `
+            Welcome, ${data.name} (${data.rollNo})<br>
+            <span style="color: ${fineColor}; font-size: 16px; display:inline-block; margin-top:5px;">${fineText}</span>
+        `;
+
+        let tbody = document.getElementById('studentPortalItemsTable');
+        tbody.innerHTML = '';
+        document.getElementById('studentPortalItemsSection').style.display = 'block';
+
+        if(data.openItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">You have no items currently issued.</td></tr>`;
+        } else {
+            data.openItems.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td><b>${item.itemName}</b></td>
+                    <td>${item.qty}</td>
+                    <td>${item.dueDate}</td>
+                </tr>`;
+            });
+        }
     }
 
     function generateReport() {
@@ -591,7 +777,6 @@
         let list = document.getElementById('cartList');
         list.innerHTML = '';
         cart.forEach((item, index) => {
-            // Apply semi-transparent bg for dark mode compatibility 
             list.innerHTML += `<li style="background: rgba(0,0,0,0.05); margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
                 <span><b>${item.qty}x</b> ${item.itemName}</span>
                 <span style="cursor: pointer; color: #d9534f; font-size: 18px;" onclick="removeFromCart(${index})" title="Remove">❌</span>
@@ -600,12 +785,11 @@
         document.getElementById('checkoutBtn').style.display = cart.length > 0 ? 'block' : 'none';
     }
 
-    // ✅ PHASE 1: Send customDueDate to backend during checkout
     async function checkout() {
         document.getElementById('checkoutBtn').innerText = "Processing...";
         
         let currentInput = document.getElementById('issueRollNo').value;
-        let customDate = document.getElementById('customDueDate').value; // Grab custom date
+        let customDate = document.getElementById('customDueDate').value; 
         
         let data = await callApi('apiIssueItems', { qrData: currentInput, cart: JSON.stringify(cart), customDueDate: customDate });
         
@@ -614,7 +798,7 @@
             cart = []; updateCartUI();
             document.getElementById('issueRollNo').value = '';
             document.getElementById('issueStudentInfo').innerHTML = '';
-            document.getElementById('customDueDate').value = ''; // reset date picker
+            document.getElementById('customDueDate').value = ''; 
             loadDashboard();
         } else {
             alert(data ? data.message : "Error issuing items.");
