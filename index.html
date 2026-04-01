@@ -1,932 +1,562 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAST NUCES Sports Inventory</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        :root { --bg-color: #f4f7f6; --card-bg: white; --text-main: #333; --border-color: #ddd; --input-bg: white; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-main); transition: background 0.3s, color 0.3s; }
-        .uni-header { background: #003366; color: white; text-align: center; padding: 20px; border-bottom: 5px solid #d9534f; position: relative; }
-        .uni-logo { height: 70px; margin-bottom: 10px; filter: brightness(0) invert(1); }
-        .main-card { max-width: 800px; margin: 20px auto; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: background 0.3s; }
-        .overlay-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,51,102,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white; }
-        .login-box { background: var(--card-bg); padding: 30px; border-radius: 10px; color: var(--text-main); width: 80%; max-width: 350px; text-align: center; }
-        #scanner-modal { display: none; z-index: 3000; }
-        #reader { width: 100%; max-width: 400px; background: var(--card-bg); padding: 10px; border-radius: 10px; color: black; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 5px; box-sizing: border-box; }
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; color: white;}
-        .btn-primary { background: #003366; } .btn-primary:hover { background: #002244; }
-        .btn-success { background: #28a745; }
-        .btn-danger { background: #d9534f; }
-        .btn-view { background: #6c757d; margin-top: 20px; }
-        .btn-print { background: #17a2b8; margin-top: 0; width: auto; padding: 8px 15px; }
-        .input-group { display: flex; gap: 10px; align-items: center; }
-        .input-group input { margin: 0; }
-        .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
-        
-        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
-        .tab-btn.active { background: #003366; color: white; }
-        .tab-btn.logout-btn { background: #d9534f; color: white; flex: 0.5; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .admin-only { display: none; }
-        .public-only { display: none; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-        th { background-color: rgba(0,0,0,0.05); }
-        .row-overdue { background-color: rgba(255, 193, 7, 0.2); }
-        .badge { padding: 3px 8px; border-radius: 12px; font-size: 12px; color: white; font-weight: bold;}
-        .badge-open { background: #d9534f; }
-        .badge-closed { background: #28a745; }
+// ==========================================
+// CUSTOM MENU (RUNS IN GOOGLE SHEETS)
+// ==========================================
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('⚡ FAST Sports Admin')
+      .addItem('Generate Official Report', 'generatePrintableReport')
+      .addSeparator()
+      .addItem('Run Late Fines Check Now', 'processLateFinesMenu')
+      .addItem('Enable Automatic Daily Fines', 'setupDailyTrigger')
+      .addItem('Disable Automatic Daily Fines', 'disableDailyTrigger')
+      .addToUi();
+}
 
-        .filter-container { margin-top: 15px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
-        .filter-btn { padding: 5px 12px; border: 1px solid var(--border-color); border-radius: 20px; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-size: 14px;}
-        .filter-btn.active-filter { background: #003366; color: white; border-color: #003366; }
+function processLateFinesMenu() {
+  let msg = processLateFines();
+  SpreadsheetApp.getUi().alert("✅ " + msg);
+}
 
-        body.dark-mode { --bg-color: #121212; --card-bg: #1e1e1e; --text-main: #e0e0e0; --border-color: #444; --input-bg: #333; }
-        .dark-mode .tab-btn { background: #333; color: #aaa; }
-        .dark-mode .tab-btn.active { background: #003366; color: white; }
-        .dark-mode #finePaymentContainer { background: #4a3b14 !important; border-color: #5c4b1a !important; color: #ffd700; }
-        .dark-mode #finePaymentContainer p { color: #ffd700 !important; }
-        .dark-mode .row-overdue { background-color: #5c3a21; }
-        #darkModeToggle { position: absolute; top: 20px; right: 20px; background: transparent; border: none; font-size: 24px; cursor: pointer; width: auto; margin: 0; }
-    </style>
-</head>
-<body>
-
-<div id="login-overlay" class="overlay-bg">
-    <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
+// ==========================================
+// AUTOMATED LATE FINES SYSTEM
+// ==========================================
+function processLateFines() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const transSheet = ss.getSheetByName("Transactions");
+  const studentSheet = ss.getSheetByName("Students");
+  const finesSheet = ss.getSheetByName("Fines_and_Damages");
+  const settings = getSettings();
+  
+  const transData = transSheet.getDataRange().getValues();
+  const studentData = studentSheet.getDataRange().getValues();
+  
+  let now = new Date();
+  let todayStr = now.toLocaleDateString('en-GB'); 
+  
+  let finesAdded = 0;
+  
+  for (let i = 1; i < transData.length; i++) {
+    let status = cleanStr(transData[i][9]).toUpperCase(); // Col J (Status)
     
-    <div class="login-box" id="loginFormSection">
-        <h3>Staff Login</h3>
-        <input type="text" id="adminUser" placeholder="Username">
-        <input type="password" id="adminPass" placeholder="Password">
-        <button class="btn btn-primary" onclick="checkLogin()">Login</button>
-        <span style="color: #17a2b8; font-size: 14px; text-decoration: underline; display: block; margin-top: 15px; cursor: pointer;" onclick="togglePasswordSection()">Change Password?</span>
-        <hr>
-        <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
-    </div>
-
-    <div class="login-box" id="changePasswordSection" style="display: none;">
-        <h3>Change Password</h3>
-        <input type="text" id="cpUser" placeholder="Username">
-        <input type="password" id="cpOldPass" placeholder="Old Password">
-        <input type="password" id="cpNewPass" placeholder="New Password">
-        <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
-        <button class="btn btn-danger" style="margin-top: 10px;" onclick="togglePasswordSection()">Cancel</button>
-    </div>
-</div>
-
-<div id="scanner-modal" class="overlay-bg">
-    <div id="reader"></div>
-    <button class="btn btn-danger" style="max-width: 400px; margin-top: 20px;" onclick="stopScanner()">Cancel Scan</button>
-</div>
-
-<div class="uni-header">
-    <button id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
-    <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <h1 style="font-size: 22px; margin: 0;">NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
-    <p style="margin: 5px 0; opacity: 0.9;">Multan Campus</p>
-    <h2 style="font-size: 18px; margin-top: 10px; color: #ffc107;">Sports Inventory System</h2>
-</div>
-
-<div class="main-card">
-    <div class="tab-bar" id="tabBar">
-        <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
-        <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
-        <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
-        <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Issued Items</div>
-        <div class="tab-btn admin-only" onclick="switchTab('history')">📜 History</div>
-        <div class="tab-btn admin-only" onclick="switchTab('fines')">💰 Fines</div>
-        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock</div>
-        <div class="tab-btn public-only" onclick="switchTab('studentPortal')">🧑‍🎓 My Portal</div>
-        <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
-        <div class="tab-btn public-only logout-btn" onclick="logout()">🔙 Back</div>
-    </div>
-
-    <div id="dashboard" class="tab-content active">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Available Inventory</h3>
-            <button class="btn btn-print admin-only" onclick="generateReport()">📄 Print Official Report</button>
-        </div>
+    if (status === "OPEN") {
+      let dueDate = new Date(transData[i][6]); // Col G (Due Date)
+      let lastFineDate = cleanStr(transData[i][10]); // Col K (Hidden - Last Fine Date)
+      
+      if (now > dueDate && lastFineDate !== todayStr) {
+        let rollNo = cleanStr(transData[i][2]); // Col C (Roll No)
+        let itemId = transData[i][3]; // Col D (Item ID)
+        let fineAmount = settings.lateFine;
         
-        <div id="categoryFilters" class="filter-container"></div>
+        // Fines Sheet: Date(A), Roll(B), Item(C), Desc(D), Amt(E), Status(F), Admin(G)
+        finesSheet.appendRow([now.toLocaleString().split(",")[0], rollNo, itemId, "Late Return Fine", fineAmount, "Pending", "System"]);
         
-        <button class="btn btn-primary" style="margin-top: 5px;" onclick="loadDashboard()">Refresh Stock</button>
-        <table>
-            <thead><tr><th>Item Name</th><th>Category</th><th>Available</th><th>Total Owned</th></tr></thead>
-            <tbody id="inventoryTableBody"></tbody>
-        </table>
-    </div>
-
-    <div id="issue" class="tab-content">
-        <h3>Issue Equipment</h3>
-        <div class="input-group">
-            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
-            <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
-        <div id="issueStudentInfo" style="margin-top: 10px; color: #17a2b8; font-weight:bold;"></div>
-        
-        <hr>
-        <h4>Select Items</h4>
-        <div style="display: flex; gap: 10px;">
-            <input list="issueItemOptions" id="issueItemSelect" placeholder="🔍 Type to search item..." style="flex: 2;">
-            <datalist id="issueItemOptions"></datalist>
-            <input type="number" id="issueQty" placeholder="Qty" value="1" min="1" style="flex: 1;">
-        </div>
-        
-        <div style="margin-top: 15px; margin-bottom: 15px;">
-            <label for="customDueDate" style="font-weight: bold; font-size: 14px;">Custom Due Date & Time (Optional):</label>
-            <input type="datetime-local" id="customDueDate">
-            <p style="font-size: 12px; margin-top: 2px; opacity: 0.8;">Leave empty to use the default 48-hour return limit.</p>
-        </div>
-
-        <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
-        
-        <ul id="cartList" style="list-style: none; padding: 0;"></ul>
-        <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; width:100%; font-size: 18px;">Checkout Now</button>
-    </div>
-
-    <div id="return" class="tab-content">
-        <h3>Return Equipment</h3>
-        <div class="input-group">
-            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
-            <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
-        <div id="returnStudentInfo" style="margin-top: 10px; color: #17a2b8; font-weight:bold;"></div>
-        
-        <div id="finePaymentContainer" style="display:none; background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeeba;">
-            <p style="margin: 0 0 5px 0; color: #856404; font-weight: bold;">Log Fine Payment</p>
-            <div class="input-group">
-                <input type="number" id="finePayAmount" placeholder="Amount (PKR)">
-                <button class="btn btn-danger" onclick="payFine()">Pay</button>
-            </div>
-        </div>
-
-        <hr>
-        <div id="returnItemsContainer"></div>
-        <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
-    </div>
-
-    <div id="activeIssues" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Currently Issued Items</h3>
-            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadActiveIssues()">Refresh List</button>
-        </div>
-        <p style="font-size: 14px; opacity: 0.8;">All students currently holding items. Overdue items are highlighted.</p>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 600px;">
-                <thead>
-                    <tr>
-                        <th>Roll No</th>
-                        <th>Name</th>
-                        <th>Item Issued</th>
-                        <th>Due Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="activeIssuesTableBody">
-                    <tr><td colspan="5" style="text-align:center;">Click "Refresh List" to load currently issued items.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="history" class="tab-content">
-        <h3>Student Transaction History</h3>
-        <div class="input-group">
-            <input type="text" id="historyRollNo" placeholder="Enter Roll No or Scan QR">
-            <button class="btn btn-primary" onclick="startScanner('history')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudentHistory()">Search History</button>
-        
-        <h4 style="margin-top: 20px;">Borrowing Records</h4>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 600px; font-size: 14px;">
-                <thead><tr><th>Item</th><th>Qty</th><th>Issued</th><th>Returned</th><th>Condition</th><th>Status</th></tr></thead>
-                <tbody id="historyTransTableBody"><tr><td colspan="6" style="text-align:center;">Search a student to view history.</td></tr></tbody>
-            </table>
-        </div>
-
-        <h4 style="margin-top: 20px;">Fines & Damages</h4>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 600px; font-size: 14px;">
-                <thead><tr><th>Date</th><th>Item</th><th>Description</th><th>Amount (PKR)</th><th>Status</th></tr></thead>
-                <tbody id="historyFinesTableBody"><tr><td colspan="5" style="text-align:center;">No fines to display.</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="fines" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Outstanding Fines</h3>
-            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadPendingFines()">Refresh List</button>
-        </div>
-        <p style="font-size: 14px; opacity: 0.8;">Students who currently owe money to the sports office.</p>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 400px;">
-                <thead><tr><th>Roll No</th><th>Name</th><th>Amount Due</th><th>Action</th></tr></thead>
-                <tbody id="pendingFinesTableBody">
-                    <tr><td colspan="4" style="text-align:center;">Click "Refresh List" to load data.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="studentPortal" class="tab-content">
-        <h3>Student Portal</h3>
-        <p style="font-size: 14px; opacity: 0.8;">Scan your Smart Card QR to securely view your issued items and fines.</p>
-        <div class="input-group">
-            <input type="text" id="studentPortalRollNo" placeholder="Click 'Scan QR' to read card" readonly>
-            <button class="btn btn-primary" onclick="startScanner('studentPortal')">📷 Scan Smart Card</button>
-        </div>
-        <button class="btn btn-success" style="display:none;" id="portalFetchBtn" onclick="fetchStudentDashboard()">View My Status</button>
-        
-        <div id="studentPortalInfo" style="margin-top: 20px; font-size: 18px; font-weight: bold; text-align: center; color: #003366;"></div>
-        
-        <div id="studentPortalItemsSection" style="display: none;">
-            <h4 style="margin-top: 20px;">Your Currently Issued Items</h4>
-            <table style="font-size: 14px;">
-                <thead><tr><th>Item</th><th>Qty</th><th>Due Date</th></tr></thead>
-                <tbody id="studentPortalItemsTable"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="restock" class="tab-content">
-        <h3>Add or Restock Inventory</h3>
-        <select id="restockType" onchange="toggleRestockType()">
-            <option value="existing">Restock Existing Item</option>
-            <option value="new">Add New Item</option>
-        </select>
-        
-        <input list="restockItemOptions" id="restockItemSelect" placeholder="🔍 Search existing item...">
-        <datalist id="restockItemOptions"></datalist>
-        
-        <input type="text" id="newItemName" placeholder="Enter New Item Name" style="display:none;">
-        <input type="number" id="restockQty" placeholder="Quantity to Add">
-        <button class="btn btn-primary" onclick="submitRestock()">Update Inventory</button>
-
-        <hr style="margin: 30px 0;">
-
-        <h3 style="color: #d9534f;">Report Office Loss</h3>
-        <p style="font-size: 14px; opacity: 0.8; margin-top: -10px;">For items lost directly from the sports room (no student fine).</p>
-        
-        <input list="officeLossItemOptions" id="officeLossItemSelect" placeholder="🔍 Search item to mark lost...">
-        <datalist id="officeLossItemOptions"></datalist>
-        
-        <input type="number" id="officeLossQty" placeholder="Quantity Lost" value="1" min="1">
-        <button class="btn btn-danger" onclick="submitOfficeLoss()">Mark as Lost</button>
-    </div>
-</div>
-
-<script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
-
-    let cart = [];
-    let currentInventoryData = [];
-    let currentCategoryFilter = 'All'; 
-
-    window.onload = () => {
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-            document.getElementById('darkModeToggle').innerText = '☀️';
+        for (let s = 1; s < studentData.length; s++) {
+          if (cleanStr(studentData[s][0]) === rollNo) {
+            let currentFine = parseInt(studentData[s][4]) || 0; // Col E (Active Fines)
+            studentSheet.getRange(s + 1, 5).setValue(currentFine + fineAmount);
+            break;
+          }
         }
+        
+        transSheet.getRange(i + 1, 11).setValue(todayStr); // Update Col K to today
+        finesAdded++;
+      }
+    }
+  }
+  return "Checked open transactions. Added " + finesAdded + " late fine(s).";
+}
+
+function setupDailyTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'processLateFines') ScriptApp.deleteTrigger(triggers[i]);
+  }
+  ScriptApp.newTrigger('processLateFines').timeBased().everyDays(1).atHour(1).create();
+  SpreadsheetApp.getUi().alert("✅ Daily automatic fine check activated!");
+}
+
+function disableDailyTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'processLateFines') ScriptApp.deleteTrigger(triggers[i]);
+  }
+  SpreadsheetApp.getUi().alert("🛑 Automatic daily fines have been disabled.");
+}
+
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+function cleanStr(input) {
+  return input ? input.toString().trim() : "";
+}
+
+function formatDateTime(dateObj) {
+  if (!dateObj || !(dateObj instanceof Date)) return dateObj;
+  return Utilities.formatDate(dateObj, Session.getScriptTimeZone(), "dd-MMM-yyyy hh:mm a");
+}
+
+function parseQR(qrData) {
+  let str = cleanStr(qrData);
+  if (str.includes(",")) {
+    let parts = str.split(",");
+    return {
+      name: parts[0] ? parts[0].trim() : "Unknown",
+      rollNo: parts[1] ? parts[1].trim().toUpperCase() : "UNKNOWN-ROLL",
+      status: parts[2] ? parts[2].trim() : "Active"
     };
+  }
+  return { name: "Unknown", rollNo: str.toUpperCase(), status: "Active" };
+}
 
-    function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        let isDark = document.body.classList.contains('dark-mode');
-        localStorage.setItem('darkMode', isDark);
-        document.getElementById('darkModeToggle').innerText = isDark ? '☀️' : '🌙';
+function generateEmail(rollNo) {
+  let match = rollNo.match(/(\d+)([A-Za-z]+)-(\d+)/);
+  if (match) {
+    let year = match[1];
+    let letter = match[2].toLowerCase();
+    let id = match[3];
+    return `${letter}${year}${id}@mtn.nu.edu.pk`;
+  }
+  return rollNo.toLowerCase().replace("-", "") + "@mtn.nu.edu.pk";
+}
+
+function getSettings() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const settingsSheet = ss.getSheetByName("System_Settings");
+  let settings = { borrowHours: 48, lateFine: 50 };
+  if (!settingsSheet) return settings;
+  const data = settingsSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    let key = cleanStr(data[i][0]);
+    if (key === "Default Borrow Time (Hours)") settings.borrowHours = parseInt(data[i][1]) || 48;
+    if (key === "Late Fine Per Day (PKR)") settings.lateFine = parseInt(data[i][1]) || 50;
+  }
+  return settings;
+}
+
+// ==========================================
+// API ROUTER
+// ==========================================
+function doGet(e) {
+  if (!e.parameter || !e.parameter.action) {
+    return ContentService.createTextOutput("FAST Sports API is running!").setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  let action = e.parameter.action;
+  let result = "";
+
+  try {
+    if (action === "adminLogin") result = adminLogin(e.parameter.user, e.parameter.pass);
+    else if (action === "apiGetInventory") result = apiGetInventory();
+    else if (action === "apiGetStudent") result = apiGetStudent(e.parameter.qrData);
+    else if (action === "apiIssueItems") result = apiIssueItems(e.parameter.qrData, e.parameter.cart, e.parameter.customDueDate);
+    else if (action === "apiGetOpenTransactions") result = apiGetOpenTransactions(e.parameter.rollNo);
+    else if (action === "apiProcessReturns") result = apiProcessReturns(e.parameter.rollNo, e.parameter.returns);
+    else if (action === "apiPayFine") result = apiPayFine(e.parameter.rollNo, e.parameter.amount); 
+    else if (action === "apiGetActiveIssues") result = apiGetActiveIssues();    
+    else if (action === "restockItem") result = restockItem(e.parameter.name, e.parameter.qty, e.parameter.isNew);
+    else if (action === "apiMarkOfficeLoss") result = apiMarkOfficeLoss(e.parameter.itemName, e.parameter.qty);
+    else if (action === "adminChangePassword") result = adminChangePassword(e.parameter.user, e.parameter.oldPass, e.parameter.newPass);
+    // ✅ PHASE 2 Endpoints
+    else if (action === "apiGetStudentHistory") result = apiGetStudentHistory(e.parameter.rollNo);
+    else if (action === "apiGetPendingFines") result = apiGetPendingFines();
+    else if (action === "apiGetStudentDashboard") result = apiGetStudentDashboard(e.parameter.qrData);
+    
+    return ContentService.createTextOutput(result).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({success: false, message: err.message})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ==========================================
+// CORE SYSTEM APIS
+// ==========================================
+
+function adminLogin(user, pass) {
+  const adminData = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Admin_Users").getDataRange().getValues();
+  for (let i = 1; i < adminData.length; i++) {
+    if (cleanStr(adminData[i][0]) === cleanStr(user) && cleanStr(adminData[i][1]) === cleanStr(pass)) return JSON.stringify({ success: true });
+  }
+  return JSON.stringify({ success: false, message: "Invalid Credentials" });
+}
+
+function apiGetInventory() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inventory");
+  const data = sheet.getDataRange().getValues();
+  let items = [];
+  for (let i = 1; i < data.length; i++) {
+    let row = data[i];
+    if (row[1]) { 
+      let restockDate = "N/A";
+      if (row[9]) {
+        restockDate = (row[9] instanceof Date) ? Utilities.formatDate(row[9], Session.getScriptTimeZone(), "dd-MMM-yyyy") : row[9];
+      }
+
+      items.push({
+        id: row[0], name: row[1], category: row[2], total: row[3] || 0,
+        available: row[4] || 0, issued: row[5] || 0, damaged: row[6] || 0,
+        lost: row[7] || 0, consumed: row[10] || 0,
+        lastRestock: restockDate 
+      });
     }
+  }
+  return JSON.stringify({ success: true, items: items });
+}
 
-    async function callApi(action, params = {}) {
-        params.action = action;
-        let url = new URL(SCRIPT_URL);
-        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-        
-        try {
-            let response = await fetch(url);
-            return await response.json();
-        } catch (error) {
-            alert("Connection error. Ensure your GAS Web App is set to 'Anyone'.");
-            console.error(error);
-        }
+function apiGetStudent(qrData) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+  const data = sheet.getDataRange().getValues();
+  let studentInfo = parseQR(qrData);
+  
+  for (let i = 1; i < data.length; i++) {
+    if (cleanStr(data[i][0]) === studentInfo.rollNo) {
+      return JSON.stringify({ found: true, rollNo: data[i][0], name: data[i][1], fines: data[i][4] });
     }
+  }
+  
+  let newEmail = generateEmail(studentInfo.rollNo);
+  sheet.appendRow([studentInfo.rollNo, studentInfo.name, newEmail, studentInfo.status, 0, "Active"]);
+  
+  return JSON.stringify({ found: true, rollNo: studentInfo.rollNo, name: studentInfo.name, fines: 0, message: "Auto-registered!" });
+}
 
-    function togglePasswordSection() {
-        let loginSec = document.getElementById("loginFormSection");
-        let passSec = document.getElementById("changePasswordSection");
-        
-        if (passSec.style.display === "none" || passSec.style.display === "") {
-            loginSec.style.display = "none";
-            passSec.style.display = "block";
+function apiIssueItems(qrData, cartParam, customDueDateParam) {
+  let studentInfo = parseQR(qrData);
+  let cart = JSON.parse(cartParam);
+  let wsTrans = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Transactions");
+  let wsInv = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inventory");
+  let settings = getSettings();
+  
+  let dueDate = new Date();
+  if (customDueDateParam) {
+    dueDate = new Date(customDueDateParam);
+  } else {
+    dueDate.setHours(dueDate.getHours() + settings.borrowHours);
+  }
+
+  let itemsListText = ""; 
+  
+  cart.forEach(item => {
+    let transId = "TXN-" + new Date().getTime() + Math.floor(Math.random() * 100);
+    let issueTs = new Date();
+    
+    wsTrans.appendRow([transId, issueTs, studentInfo.rollNo, item.itemName, item.qty, "Issue", dueDate, "", "", "OPEN", ""]);
+    
+    let invData = wsInv.getDataRange().getValues();
+    for(let i=1; i<invData.length; i++){
+      if(cleanStr(invData[i][0]) == cleanStr(item.itemName) || cleanStr(invData[i][1]) == cleanStr(item.itemName)){
+        let currentAvailable = parseInt(invData[i][4]) || 0;
+        let currentIssued = parseInt(invData[i][5]) || 0;
+        wsInv.getRange(i+1, 5).setValue(currentAvailable - item.qty); 
+        wsInv.getRange(i+1, 6).setValue(currentIssued + parseInt(item.qty)); 
+        break;
+      }
+    }
+    itemsListText += `- ${item.qty}x ${item.itemName}\n`;
+  });
+
+  try {
+    let studentEmail = generateEmail(studentInfo.rollNo);
+    let subject = "Sports Equipment Issued - FAST NUCES";
+    let formattedDue = formatDateTime(dueDate);
+    let body = `Dear ${studentInfo.name},\n\nYou have been issued:\n${itemsListText}\nDue: ${formattedDue}.\n\nRegards,\nSports Office`;
+    MailApp.sendEmail(studentEmail, subject, body);
+  } catch(e) {}
+  
+  return JSON.stringify({success: true, message: "Issued successfully!"});
+}
+
+function apiGetOpenTransactions(rollNo) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const transData = ss.getSheetByName("Transactions").getDataRange().getValues();
+  const invData = ss.getSheetByName("Inventory").getDataRange().getValues();
+  let itemMap = {};
+  for (let i = 1; i < invData.length; i++) itemMap[invData[i][0]] = invData[i][1];
+
+  let searchRollNo = cleanStr(rollNo);
+  let openItems = [];
+  
+  for (let i = 1; i < transData.length; i++) {
+    if (cleanStr(transData[i][2]) === searchRollNo && cleanStr(transData[i][9]).toUpperCase() === "OPEN") {
+      let formattedDate = formatDateTime(transData[i][6]);
+      openItems.push({ 
+        transactionId: transData[i][0], 
+        itemId: transData[i][3],        
+        itemName: itemMap[transData[i][3]] || transData[i][3] || "Unknown", 
+        qty: transData[i][4],           
+        dueDate: formattedDate        
+      });
+    }
+  }
+  return JSON.stringify({ success: true, items: openItems });
+}
+
+function apiProcessReturns(rollNoParam, returnDataStr) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const returnData = JSON.parse(returnDataStr);
+  const timestamp = new Date().toLocaleString();
+  let targetRollNo = cleanStr(rollNoParam);
+  
+  const transSheet = ss.getSheetByName("Transactions");
+  const invSheet = ss.getSheetByName("Inventory");
+  const studentSheet = ss.getSheetByName("Students");
+  const finesSheet = ss.getSheetByName("Fines_and_Damages");
+
+  const transData = transSheet.getDataRange().getValues();
+  const invData = invSheet.getDataRange().getValues();
+  const studentData = studentSheet.getDataRange().getValues();
+  let totalFineAdded = 0;
+
+  for (let r = 0; r < returnData.length; r++) {
+    let retItem = returnData[r];
+    let returnQty = parseInt(retItem.qty);
+    if (returnQty <= 0) continue; 
+    let fineAmt = parseInt(retItem.fineAmount) || 0; 
+
+    for (let i = 1; i < transData.length; i++) {
+      if (cleanStr(transData[i][0]) === cleanStr(retItem.transactionId)) {
+        let origQty = parseInt(transData[i][4]); 
+        if (returnQty < origQty) {
+          transSheet.getRange(i + 1, 5).setValue(origQty - returnQty); 
         } else {
-            loginSec.style.display = "block";
-            passSec.style.display = "none";
+          transSheet.getRange(i + 1, 8).setValue(timestamp); 
+          transSheet.getRange(i + 1, 9).setValue(retItem.condition); 
+          transSheet.getRange(i + 1, 10).setValue("CLOSED"); 
         }
+        break;
+      }
     }
 
-    async function changeAdminPassword() {
-        let user = document.getElementById("cpUser").value;
-        let oldPass = document.getElementById("cpOldPass").value;
-        let newPass = document.getElementById("cpNewPass").value;
-
-        if (!user || !oldPass || !newPass) return alert("Please fill in all fields to change your password.");
-
-        let btn = document.querySelector("#changePasswordSection .btn-primary");
-        btn.innerText = "Updating...";
-        btn.disabled = true;
-
-        let data = await callApi('adminChangePassword', { user: user, oldPass: oldPass, newPass: newPass });
+    for (let i = 1; i < invData.length; i++) {
+      if (cleanStr(invData[i][0]) === cleanStr(retItem.itemId) || cleanStr(invData[i][1]) === cleanStr(retItem.itemId)) {
+        let avail = parseInt(invData[i][4]) || 0; 
+        let issued = parseInt(invData[i][5]) || 0;
         
-        if (data && data.success) {
-            alert("✅ " + data.message);
-            document.getElementById("cpOldPass").value = "";
-            document.getElementById("cpNewPass").value = "";
-            togglePasswordSection();
-        } else {
-            alert("❌ " + (data ? data.message : "Error connecting to server."));
-        }
+        invSheet.getRange(i + 1, 6).setValue(issued - returnQty); 
 
-        btn.innerText = "Update Password";
-        btn.disabled = false;
+        if (retItem.condition === "Good") invSheet.getRange(i + 1, 5).setValue(avail + returnQty); 
+        else if (retItem.condition === "Damaged") invSheet.getRange(i + 1, 7).setValue((parseInt(invData[i][6]) || 0) + returnQty); 
+        else if (retItem.condition === "Consumed") invSheet.getRange(i + 1, 11).setValue((parseInt(invData[i][10]) || 0) + returnQty); 
+        else if (retItem.condition === "Lost") invSheet.getRange(i + 1, 8).setValue((parseInt(invData[i][7]) || 0) + returnQty); 
+        break;
+      }
     }
 
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
-        let targetTab = document.getElementById(tabId);
-        if(targetTab) targetTab.classList.add('active');
-        
-        let targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick') === `switchTab('${tabId}')`);
-        if(targetBtn) targetBtn.classList.add('active');
-        
-        document.querySelectorAll('.logout-btn').forEach(btn => btn.classList.remove('active'));
-        
-        if(tabId === 'dashboard') loadDashboard();
-        if(tabId === 'activeIssues') loadActiveIssues(); 
-        if(tabId === 'fines') loadPendingFines();
+    if ((retItem.condition === "Damaged" || retItem.condition === "Lost") && fineAmt > 0) {
+      totalFineAdded += fineAmt;
+      let fineType = retItem.condition === "Lost" ? "Lost Item Fine" : "Damage Fine";
+      finesSheet.appendRow([ timestamp.split(",")[0], targetRollNo, retItem.itemId, fineType, fineAmt, "Pending", "System" ]);
     }
+  }
 
-    async function checkLogin() {
-        const u = document.getElementById('adminUser').value;
-        const p = document.getElementById('adminPass').value;
-        document.getElementById('adminUser').value = "Logging in...";
-        
-        let data = await callApi('adminLogin', { user: u, pass: p });
-        if(data && data.success) {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.querySelectorAll('.admin-only').forEach(el => {
-                if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
-                else el.style.display = 'block';
-            });
-            document.querySelectorAll('.public-only').forEach(el => el.style.display = 'none');
-            document.getElementById('adminUser').value = '';
-            document.getElementById('adminPass').value = '';
-            loadDashboard();
-        } else {
-            alert(data ? data.message : "Error logging in");
-            document.getElementById('adminUser').value = u;
-        }
+  if (totalFineAdded > 0) {
+    for (let i = 1; i < studentData.length; i++) {
+      if (cleanStr(studentData[i][0]) === targetRollNo) {
+        studentSheet.getRange(i + 1, 5).setValue((parseInt(studentData[i][4]) || 0) + totalFineAdded);
+        break;
+      }
     }
+  }
 
-    function logout() {
-        document.getElementById('login-overlay').style.display = 'flex';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.public-only').forEach(el => el.style.display = 'none');
-        
-        // Reset inputs to protect privacy
-        document.getElementById('studentPortalRollNo').value = "";
-        document.getElementById('studentPortalInfo').innerHTML = "";
-        document.getElementById('studentPortalItemsSection').style.display = "none";
-        
-        switchTab('dashboard'); 
+  return JSON.stringify({ success: true, message: "Returns Processed Successfully!" });
+}
+
+function apiPayFine(rollNoParam, payAmountStr) {
+  const payAmount = parseInt(payAmountStr);
+  if (isNaN(payAmount) || payAmount <= 0) return JSON.stringify({ success: false, message: "Invalid payment amount." });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const studentSheet = ss.getSheetByName("Students");
+  const finesSheet = ss.getSheetByName("Fines_and_Damages");
+  let targetRollNo = cleanStr(rollNoParam);
+  
+  let studentFound = false;
+  const sData = studentSheet.getDataRange().getValues();
+  for (let i = 1; i < sData.length; i++) {
+    if (cleanStr(sData[i][0]) === targetRollNo) {
+      let currentFine = parseInt(sData[i][4]) || 0; 
+      let newBalance = Math.max(0, currentFine - payAmount);
+      studentSheet.getRange(i + 1, 5).setValue(newBalance); 
+      studentFound = true;
+      break;
     }
+  }
 
-    function enterViewOnly() {
-        document.getElementById('login-overlay').style.display = 'none';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.public-only').forEach(el => el.style.display = 'block');
-        switchTab('dashboard');
+  if (!studentFound) return JSON.stringify({ success: false, message: "Student not found." });
+
+  finesSheet.appendRow([new Date().toLocaleString().split(",")[0], targetRollNo, "Account Balance", "Payment Received", payAmount, "Paid", "Admin"]);
+  
+  return JSON.stringify({ success: true, message: `PKR ${payAmount} paid successfully!` });
+}
+
+function restockItem(name, qtyStr, isNewStr) {
+  let qty = parseInt(qtyStr) || 0;
+  let isNew = isNewStr === "true";
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inventory");
+  let today = new Date().toLocaleDateString('en-GB');
+
+  if (isNew) {
+    let newId = "ITM-" + Math.floor(1000 + Math.random() * 9000);
+    sheet.appendRow([newId, name, "General", qty, qty, 0, 0, 0, "", today, 0]);
+    return JSON.stringify({ success: true, message: `Added new item: ${name} (Qty: ${qty})` });
+  } else {
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (cleanStr(data[i][1]) === cleanStr(name)) {
+        let currentTotal = parseInt(data[i][3]) || 0;
+        let currentAvail = parseInt(data[i][4]) || 0;
+        sheet.getRange(i + 1, 4).setValue(currentTotal + qty); 
+        sheet.getRange(i + 1, 5).setValue(currentAvail + qty); 
+        sheet.getRange(i + 1, 10).setValue(today); 
+        return JSON.stringify({ success: true, message: `Restocked ${qty}x ${name}` });
+      }
     }
+    return JSON.stringify({ success: false, message: "Item not found!" });
+  }
+}
 
-    let html5QrcodeScanner; let currentScanMode = '';
-    function startScanner(mode) {
-        currentScanMode = mode;
-        document.getElementById('scanner-modal').style.display = 'flex';
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render((text) => { 
-            stopScanner(); 
-            document.getElementById(currentScanMode + 'RollNo').value = text; 
-            if(currentScanMode === 'studentPortal') {
-                fetchStudentDashboard();
-            } else if (currentScanMode === 'history') {
-                fetchStudentHistory();
-            } else {
-                fetchStudent(currentScanMode); 
-            }
-        }, (err) => {});
+function apiMarkOfficeLoss(itemName, qtyStr) {
+  let qty = parseInt(qtyStr) || 0;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inventory");
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (cleanStr(data[i][1]) === cleanStr(itemName)) {
+      let currentAvail = parseInt(data[i][4]) || 0;
+      let currentLost = parseInt(data[i][7]) || 0;
+      
+      if (qty > currentAvail) {
+        return JSON.stringify({success: false, message: "Cannot mark more lost than currently available!"});
+      }
+      
+      sheet.getRange(i + 1, 5).setValue(currentAvail - qty); 
+      sheet.getRange(i + 1, 8).setValue(currentLost + qty); 
+      return JSON.stringify({ success: true, message: `Successfully marked ${qty}x ${itemName} as office loss.` });
     }
-    function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
+  }
+  return JSON.stringify({ success: false, message: "Item not found!" });
+}
 
-    function renderCategoryFilters(items) {
-        let categories = new Set();
-        items.forEach(i => { if(i.category) categories.add(i.category); });
-        
-        let container = document.getElementById('categoryFilters');
-        container.innerHTML = `<button class="filter-btn ${currentCategoryFilter === 'All' ? 'active-filter' : ''}" onclick="applyFilter('All')">All</button>`;
-        
-        categories.forEach(cat => {
-            let activeClass = currentCategoryFilter === cat ? 'active-filter' : '';
-            container.innerHTML += `<button class="filter-btn ${activeClass}" onclick="applyFilter('${cat}')">${cat}</button>`;
+function apiGetActiveIssues() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const transData = ss.getSheetByName("Transactions").getDataRange().getValues();
+  const studentData = ss.getSheetByName("Students").getDataRange().getValues();
+  
+  let now = new Date();
+  let activeList = [];
+  
+  let studentMap = {};
+  for (let i = 1; i < studentData.length; i++) studentMap[cleanStr(studentData[i][0])] = cleanStr(studentData[i][1]);
+  
+  for (let i = 1; i < transData.length; i++) {
+    if (cleanStr(transData[i][9]).toUpperCase() === "OPEN") {
+      let dueDateObj = new Date(transData[i][6]);
+      let rollNo = cleanStr(transData[i][2]);
+      let isOverdue = now > dueDateObj;
+      
+      let daysLate = 0;
+      if (isOverdue) {
+          let diffTime = Math.abs(now - dueDateObj);
+          daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
+      let formattedDate = formatDateTime(transData[i][6]);
+      
+      activeList.push({
+        transactionId: transData[i][0],
+        rollNo: rollNo,
+        studentName: studentMap[rollNo] || "Unknown",
+        itemId: transData[i][3], 
+        itemName: transData[i][3], 
+        qty: transData[i][4], 
+        dueDate: formattedDate,
+        isOverdue: isOverdue,
+        daysLate: daysLate 
+      });
+    }
+  }
+  return JSON.stringify({ success: true, activeIssues: activeList });
+}
+
+function adminChangePassword(user, oldPass, newPass) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Admin_Users");
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (cleanStr(data[i][0]) === cleanStr(user) && cleanStr(data[i][1]) === cleanStr(oldPass)) {
+      sheet.getRange(i + 1, 2).setValue(cleanStr(newPass));
+      return JSON.stringify({ success: true, message: "Password updated successfully! You can now log in." });
+    }
+  }
+  return JSON.stringify({ success: false, message: "Invalid Username or Old Password." });
+}
+
+// ✅ PHASE 2 Functions Below
+function apiGetStudentHistory(rollNo) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const targetRoll = cleanStr(rollNo).toUpperCase();
+  
+  const transData = ss.getSheetByName("Transactions").getDataRange().getValues();
+  let history = [];
+  for(let i = 1; i < transData.length; i++) {
+    if(cleanStr(transData[i][2]).toUpperCase() === targetRoll) {
+      history.push({
+        issueDate: formatDateTime(transData[i][1]),
+        item: transData[i][3],
+        qty: transData[i][4],
+        status: transData[i][9],
+        returnDate: transData[i][7] ? formatDateTime(transData[i][7]) : "-",
+        condition: transData[i][8] || "-"
+      });
+    }
+  }
+  
+  const finesData = ss.getSheetByName("Fines_and_Damages").getDataRange().getValues();
+  let fineHistory = [];
+  for(let i = 1; i < finesData.length; i++) {
+     if(cleanStr(finesData[i][1]).toUpperCase() === targetRoll) {
+        fineHistory.push({
+          date: finesData[i][0],
+          item: finesData[i][2],
+          desc: finesData[i][3],
+          amount: finesData[i][4],
+          status: finesData[i][5]
         });
-    }
+     }
+  }
+  
+  return JSON.stringify({success: true, transactions: history, fines: fineHistory});
+}
 
-    function applyFilter(category) {
-        currentCategoryFilter = category;
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.toggle('active-filter', btn.innerText === category);
+function apiGetPendingFines() {
+  const studentData = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students").getDataRange().getValues();
+  let debtors = [];
+  for(let i = 1; i < studentData.length; i++) {
+     let fines = parseInt(studentData[i][4]) || 0;
+     if(fines > 0) {
+        debtors.push({
+           rollNo: studentData[i][0],
+           name: studentData[i][1],
+           fines: fines
         });
-        renderInventoryTable();
-    }
+     }
+  }
+  // Sort highest fine first
+  debtors.sort((a, b) => b.fines - a.fines);
+  return JSON.stringify({success: true, debtors: debtors});
+}
 
-    function renderInventoryTable() {
-        let tbody = document.getElementById('inventoryTableBody');
-        tbody.innerHTML = '';
-        currentInventoryData.forEach(item => {
-            if(item.available > 0 && (currentCategoryFilter === 'All' || item.category === currentCategoryFilter)) {
-                tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-            }
-        });
-    }
-
-    async function loadDashboard() {
-        let data = await callApi('apiGetInventory');
-        if(!data) return;
-        
-        currentInventoryData = data.items;
-        renderCategoryFilters(currentInventoryData); 
-        renderInventoryTable(); 
-        
-        let s1 = document.getElementById('issueItemOptions'); 
-        let s2 = document.getElementById('restockItemOptions'); 
-        let s3 = document.getElementById('officeLossItemOptions'); 
-        
-        s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
-        
-        data.items.forEach(item => {
-            if(item.available > 0) s1.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
-            s2.innerHTML += `<option value="${item.name}">`;
-            s3.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
-        });
-    }
-
-    async function loadActiveIssues() {
-        let tbody = document.getElementById('activeIssuesTableBody');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
-        
-        let data = await callApi('apiGetActiveIssues');
-        if(!data || !data.success) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data. Make sure backend is updated and deployed!</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = '';
-        if(data.activeIssues.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:green; padding: 20px;"><b>🎉 No items are currently issued to anyone.</b></td></tr>';
-            return;
-        }
-        
-        data.activeIssues.forEach(item => {
-            let statusHtml = item.isOverdue 
-                ? `<b style="color:#d9534f;">Overdue (${item.daysLate} Days)</b>` 
-                : `<b style="color:#28a745;">Issued (On Time)</b>`;
-            
-            let rowClass = item.isOverdue ? "row-overdue" : "";
-            let dateStyle = item.isOverdue ? "color:#d9534f; font-weight:bold;" : "";
-
-            tbody.innerHTML += `<tr class="${rowClass}">
-                <td><b>${item.rollNo}</b></td>
-                <td>${item.studentName}</td>
-                <td>${item.qty}x ${item.itemName}</td>
-                <td style="${dateStyle}">${item.dueDate}</td>
-                <td>${statusHtml}</td>
-            </tr>`;
-        });
-    }
-
-    // ✅ PHASE 2: Fetch Student History 
-    async function fetchStudentHistory() {
-        let rollNo = document.getElementById('historyRollNo').value;
-        if(!rollNo) return alert("Please enter or scan a Roll No.");
-        
-        document.querySelector("#history .btn-success").innerText = "Searching...";
-        let data = await callApi('apiGetStudentHistory', { rollNo: rollNo });
-        document.querySelector("#history .btn-success").innerText = "Search History";
-        
-        if(!data || !data.success) return alert("Failed to fetch history.");
-        
-        let tBody = document.getElementById('historyTransTableBody');
-        tBody.innerHTML = '';
-        if(data.transactions.length === 0) {
-            tBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No borrowing history found.</td></tr>';
-        } else {
-            data.transactions.forEach(t => {
-                let badge = t.status.toUpperCase() === 'OPEN' ? '<span class="badge badge-open">OPEN</span>' : '<span class="badge badge-closed">CLOSED</span>';
-                tBody.innerHTML += `<tr><td>${t.item}</td><td>${t.qty}</td><td>${t.issueDate}</td><td>${t.returnDate}</td><td>${t.condition}</td><td>${badge}</td></tr>`;
-            });
-        }
-
-        let fBody = document.getElementById('historyFinesTableBody');
-        fBody.innerHTML = '';
-        if(data.fines.length === 0) {
-            fBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No fines or damages recorded.</td></tr>';
-        } else {
-            data.fines.forEach(f => {
-                let amtColor = f.status.toUpperCase() === 'PAID' ? 'color:green;' : 'color:#d9534f; font-weight:bold;';
-                fBody.innerHTML += `<tr><td>${new Date(f.date).toLocaleDateString()}</td><td>${f.item}</td><td>${f.desc}</td><td style="${amtColor}">${f.amount}</td><td>${f.status}</td></tr>`;
-            });
-        }
-    }
-
-    // ✅ PHASE 2: Load Pending Fines
-    async function loadPendingFines() {
-        let tbody = document.getElementById('pendingFinesTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
-        
-        let data = await callApi('apiGetPendingFines');
-        tbody.innerHTML = '';
-        
-        if(!data || !data.success || data.debtors.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:green; font-weight:bold;">🎉 All students are clear! No outstanding fines.</td></tr>';
-            return;
-        }
-
-        data.debtors.forEach(d => {
-            tbody.innerHTML += `<tr>
-                <td><b>${d.rollNo}</b></td>
-                <td>${d.name}</td>
-                <td style="color:#d9534f; font-weight:bold;">PKR ${d.fines}</td>
-                <td><button class="btn btn-primary" style="margin:0; padding: 5px 10px;" onclick="goToPayFine('${d.rollNo}')">Settle</button></td>
-            </tr>`;
-        });
-    }
-
-    // ✅ PHASE 2: Link Fines tab to Return/Pay tab
-    function goToPayFine(rollNo) {
-        switchTab('return');
-        document.getElementById('returnRollNo').value = rollNo;
-        fetchStudent('return');
-    }
-
-    // ✅ PHASE 2: Student Self-Service Dashboard
-    async function fetchStudentDashboard() {
-        let qrData = document.getElementById('studentPortalRollNo').value;
-        if(!qrData) return alert("Please scan your Smart Card.");
-        
-        document.getElementById('studentPortalInfo').innerHTML = "Loading your data securely...";
-        
-        let data = await callApi('apiGetStudentDashboard', { qrData: qrData });
-        if(!data || !data.success) {
-            document.getElementById('studentPortalInfo').innerHTML = "<span style='color:red;'>Student not found. Please contact the sports office.</span>";
-            return;
-        }
-
-        let fineColor = data.fines > 0 ? "#d9534f" : "#28a745";
-        let fineText = data.fines > 0 ? `Unpaid Fines: PKR ${data.fines}` : `No Outstanding Fines`;
-        
-        document.getElementById('studentPortalInfo').innerHTML = `
-            Welcome, ${data.name} (${data.rollNo})<br>
-            <span style="color: ${fineColor}; font-size: 16px; display:inline-block; margin-top:5px;">${fineText}</span>
-        `;
-
-        let tbody = document.getElementById('studentPortalItemsTable');
-        tbody.innerHTML = '';
-        document.getElementById('studentPortalItemsSection').style.display = 'block';
-
-        if(data.openItems.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">You have no items currently issued.</td></tr>`;
-        } else {
-            data.openItems.forEach(item => {
-                tbody.innerHTML += `<tr>
-                    <td><b>${item.itemName}</b></td>
-                    <td>${item.qty}</td>
-                    <td>${item.dueDate}</td>
-                </tr>`;
-            });
-        }
-    }
-
-    function generateReport() {
-        if(currentInventoryData.length === 0) {
-            alert("Please wait for the inventory to load first.");
-            return;
-        }
-
-        let today = new Date();
-        let formattedDate = today.toLocaleDateString('en-GB');
-
-        let tableRows = '';
-        currentInventoryData.forEach((item, index) => {
-            tableRows += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td style="text-align: left; padding-left: 5px;">${item.name}</td>
-                    <td>${item.category}</td>
-                    <td>${item.total}</td>
-                    <td>${item.available}</td>
-                    <td>${item.damaged}</td>
-                    <td>${item.consumed}</td>
-                    <td>${item.lost}</td>
-                    <td>${item.lastRestock}</td>
-                </tr>
-            `;
-        });
-
-        let printWin = window.open('', '', 'width=800,height=900');
-        printWin.document.write(`
-            <html>
-            <head>
-                <title>Sports Office Inventory Report</title>
-                <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; margin: 0; padding: 20px; background: white;}
-                    .header { text-align: center; margin-bottom: 15px; }
-                    .header img { height: 50px; margin-bottom: 5px; }
-                    .header h1 { font-size: 14px; margin: 0; text-transform: uppercase; }
-                    .header h2 { font-size: 12px; margin: 3px 0 0 0; font-weight: normal; }
-                    .header h3 { font-size: 16px; margin: 15px 0 10px 0; text-decoration: underline; }
-                    
-                    .date-container { text-align: right; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
-                    
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 11px; }
-                    th, td { border: 1px solid #000; padding: 6px 3px; text-align: center; word-wrap: break-word; }
-                    th { background-color: #f2f2f2; font-weight: bold; }
-                    
-                    .footer { display: flex; justify-content: flex-end; margin-top: 40px; }
-                    .signature-box { text-align: center; width: 220px; font-size: 12px; }
-                    .sig-line { border-top: 1px solid #000; margin-bottom: 5px; }
-                    
-                    @media print {
-                        @page { size: A4 portrait; margin: 12mm; }
-                        body { padding: 0; }
-                        tr { page-break-inside: avoid; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <img src="https://www.nu.edu.pk/Content/images/Logo.png" alt="FAST Logo">
-                    <h1>NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
-                    <h2>Multan Campus</h2>
-                    <h3>Sports Office Inventory Report</h3>
-                </div>
-                
-                <div class="date-container">
-                    Date: ${formattedDate}
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 4%;">Sr</th>
-                            <th style="width: 22%; text-align: left; padding-left: 5px;">Item Name</th>
-                            <th style="width: 14%;">Category</th>
-                            <th style="width: 9%;">Total<br>Purchased</th>
-                            <th style="width: 9%;">Currently<br>Available</th>
-                            <th style="width: 9%;">Total<br>Damaged</th>
-                            <th style="width: 9%;">Total<br>Consumed</th>
-                            <th style="width: 9%;">Total<br>Lost</th>
-                            <th style="width: 15%;">Last Restock<br>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                    </tbody>
-                </table>
-
-                <div class="footer">
-                    <div class="signature-box">
-                        <div class="sig-line"></div>
-                        <strong>Signature of Sports Officer</strong>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `);
-        
-        printWin.document.close();
-        setTimeout(() => { printWin.print(); }, 800);
-    }
-
-    async function fetchStudent(mode) {
-        let inputValue = document.getElementById(mode + 'RollNo').value;
-        if(!inputValue) return alert("Enter Roll No or Scan QR");
-        
-        document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
-        
-        let data = await callApi('apiGetStudent', { qrData: inputValue });
-        
-        document.querySelector(`#${mode} .btn-success`).innerText = mode === 'issue' ? "Find Student" : "Find Open Items";
-        if(!data) return;
-
-        document.getElementById(mode + 'RollNo').value = data.rollNo;
-
-        let autoRegBadge = data.message === "Auto-registered!" ? " <span style='color:green;'>(New Registration)</span>" : "";
-        document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}${autoRegBadge}`;
-        
-        if(mode === 'return') {
-            if(data.fines > 0) {
-                document.getElementById('finePaymentContainer').style.display = 'block';
-                document.getElementById('finePayAmount').value = data.fines;
-            } else {
-                document.getElementById('finePaymentContainer').style.display = 'none';
-            }
-            fetchOpenTransactions(data.rollNo);
-        }
-    }
-
-    function addToCart() {
-        let itemName = document.getElementById('issueItemSelect').value;
-        let qty = parseInt(document.getElementById('issueQty').value);
-
-        let selectedItem = currentInventoryData.find(i => i.name === itemName);
-        
-        if (!itemName) return alert("Please type or select an item from the list.");
-        if (!selectedItem || selectedItem.available <= 0) return alert("Please select a valid item that is currently in stock.");
-        if (qty > selectedItem.available) return alert(`Not enough stock! Only ${selectedItem.available}x ${itemName} available.`);
-
-        cart.push({ itemName: itemName, qty: qty });
-        updateCartUI();
-        
-        document.getElementById('issueItemSelect').value = '';
-        document.getElementById('issueQty').value = '1';
-    }
-
-    function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
-
-    function updateCartUI() {
-        let list = document.getElementById('cartList');
-        list.innerHTML = '';
-        cart.forEach((item, index) => {
-            list.innerHTML += `<li style="background: rgba(0,0,0,0.05); margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
-                <span><b>${item.qty}x</b> ${item.itemName}</span>
-                <span style="cursor: pointer; color: #d9534f; font-size: 18px;" onclick="removeFromCart(${index})" title="Remove">❌</span>
-            </li>`;
-        });
-        document.getElementById('checkoutBtn').style.display = cart.length > 0 ? 'block' : 'none';
-    }
-
-    async function checkout() {
-        document.getElementById('checkoutBtn').innerText = "Processing...";
-        
-        let currentInput = document.getElementById('issueRollNo').value;
-        let customDate = document.getElementById('customDueDate').value; 
-        
-        let data = await callApi('apiIssueItems', { qrData: currentInput, cart: JSON.stringify(cart), customDueDate: customDate });
-        
-        if(data && data.success) {
-            alert("Issued Successfully!");
-            cart = []; updateCartUI();
-            document.getElementById('issueRollNo').value = '';
-            document.getElementById('issueStudentInfo').innerHTML = '';
-            document.getElementById('customDueDate').value = ''; 
-            loadDashboard();
-        } else {
-            alert(data ? data.message : "Error issuing items.");
-        }
-        document.getElementById('checkoutBtn').innerText = "Checkout Now";
-    }
-
-    async function fetchOpenTransactions(rollNo) {
-        let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
-        let container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
-        if(!data || data.items.length === 0) return container.innerHTML = "<p>No open items.</p>";
-        
-        data.items.forEach(item => {
-            container.innerHTML += `
-            <div class="return-item" data-id="${item.transactionId}" data-itemid="${item.itemId}">
-                <p style="margin-bottom: 5px;"><b>${item.itemName}</b> (Due: ${item.dueDate})</p>
-                
-                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
-                    <label>Return Qty:</label>
-                    <input type="number" class="retQtyInput" value="${item.qty}" max="${item.qty}" min="0" style="width: 80px; margin: 0;">
-                    <span style="opacity: 0.6;">/ ${item.qty}</span>
-                </div>
-
-                <select class="condSelect" onchange="toggleFine(this)">
-                    <option value="Good">Good</option>
-                    <option value="Damaged">Damaged</option>
-                    <option value="Consumed">Consumed (e.g. broken ball)</option>
-                    <option value="Lost">Lost by Student</option>
-                </select>
-                <input type="number" class="fineInput" placeholder="Fine PKR" style="display:none; width:100px;">
-                <hr style="opacity:0.2;">
-            </div>`;
-        });
-        document.getElementById('processReturnBtn').style.display = 'block';
-    }
-
-    function toggleFine(sel) {
-        let requiresFine = (sel.value === "Damaged" || sel.value === "Lost");
-        sel.nextElementSibling.style.display = requiresFine ? "inline-block" : "none";
-        sel.nextElementSibling.value = requiresFine ? "" : "0";
-    }
-
-    async function processReturns() {
-        let returnData = [];
-        document.querySelectorAll('.return-item').forEach(div => {
-            let q = parseInt(div.querySelector('.retQtyInput').value);
-            if(q > 0) {
-                returnData.push({ 
-                    transactionId: div.dataset.id, 
-                    itemId: div.dataset.itemid, 
-                    qty: q, 
-                    condition: div.querySelector('.condSelect').value, 
-                    fineAmount: div.querySelector('.fineInput').value || 0 
-                });
-            }
-        });
-        if(returnData.length === 0) return alert("Adjust the quantities to return at least 1 item.");
-
-        document.getElementById('processReturnBtn').innerText = "Processing...";
-        let data = await callApi('apiProcessReturns', { rollNo: document.getElementById('returnRollNo').value, returns: JSON.stringify(returnData) });
-        alert(data.message);
-        document.getElementById('returnItemsContainer').innerHTML = '';
-        document.getElementById('processReturnBtn').style.display = 'none';
-        document.getElementById('processReturnBtn').innerText = "Process Returns";
-        fetchStudent('return');
-    }
-
-    async function payFine() {
-        let amt = document.getElementById('finePayAmount').value;
-        if(!amt || amt <= 0) return alert("Please enter a valid amount to pay.");
-        let btn = document.querySelector('#finePaymentContainer .btn-danger');
-        btn.innerText = "...";
-        
-        let data = await callApi('apiPayFine', { rollNo: document.getElementById('returnRollNo').value, amount: amt });
-        alert(data.message);
-        btn.innerText = "Pay";
-        fetchStudent('return'); 
-    }
-
-    function toggleRestockType() {
-        let type = document.getElementById('restockType').value;
-        document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
-        document.getElementById('newItemName').style.display = type === 'new' ? 'block' : 'none';
-    }
-
-    async function submitRestock() {
-        let isNew = document.getElementById('restockType').value === 'new';
-        let name = isNew ? document.getElementById('newItemName').value : document.getElementById('restockItemSelect').value;
-        let qty = document.getElementById('restockQty').value;
-
-        if (!name || !qty) return alert("Please fill out both the item name and quantity.");
-
-        if (!isNew) {
-            let exists = currentInventoryData.some(i => i.name === name);
-            if (!exists) return alert("Please select a valid existing item from the list, or choose 'Add New Item' from the dropdown above.");
-        }
-
-        let data = await callApi('restockItem', { name: name, qty: qty, isNew: isNew });
-        alert(data.message); 
-        
-        document.getElementById('restockItemSelect').value = '';
-        document.getElementById('newItemName').value = '';
-        document.getElementById('restockQty').value = '';
-        loadDashboard();
-    }
-
-    async function submitOfficeLoss() {
-        let name = document.getElementById('officeLossItemSelect').value;
-        let qty = parseInt(document.getElementById('officeLossQty').value);
-        
-        if(!name || qty < 1) return alert("Please specify the item and quantity lost.");
-        
-        let selectedItem = currentInventoryData.find(i => i.name === name);
-        if (!selectedItem) return alert("Please select a valid item from the list.");
-        if (qty > selectedItem.available) return alert(`You cannot mark ${qty}x as lost. Only ${selectedItem.available}x available in stock.`);
-
-        if(confirm(`Are you sure you want to mark ${qty}x ${name} as lost from the office? This cannot be undone.`)) {
-            let btn = event.target;
-            btn.innerText = "Processing...";
-            let data = await callApi('apiMarkOfficeLoss', { itemName: name, qty: qty });
-            alert(data.message);
-            
-            btn.innerText = "Mark as Lost";
-            document.getElementById('officeLossItemSelect').value = '';
-            document.getElementById('officeLossQty').value = "1";
-            loadDashboard(); 
-        }
-    }
-</script>
-</body>
-</html>
+function apiGetStudentDashboard(qrData) {
+   let studentInfo = parseQR(qrData);
+   let stuResObj = JSON.parse(apiGetStudent(qrData)); 
+   
+   if(!stuResObj.found) return JSON.stringify({success: false, message: "Student not found."});
+   
+   let openResObj = JSON.parse(apiGetOpenTransactions(stuResObj.rollNo));
+   return JSON.stringify({
+      success: true,
+      rollNo: stuResObj.rollNo,
+      name: stuResObj.name,
+      fines: stuResObj.fines,
+      openItems: openResObj.items || []
+   });
+}
