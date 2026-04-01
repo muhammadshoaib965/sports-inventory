@@ -2,16 +2,21 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sports System</title>
+<title>Sports Inventory System</title>
+
 <style>
-body{font-family:Arial;background:#0f172a;color:#fff}
+body{font-family:Arial;background:#0f172a;color:white}
 .container{padding:20px}
 input,select,button{padding:8px;margin:5px}
 .low{background:#7f1d1d}
+table{border-collapse:collapse}
+td,th{padding:8px}
 </style>
+
 </head>
 
 <body>
+
 <div class="container">
 
 <h2>Admin Login</h2>
@@ -21,82 +26,114 @@ input,select,button{padding:8px;margin:5px}
 
 <div id="panel" style="display:none">
 
-<h3>Issue Item</h3>
+<h2>Issue Items</h2>
 <input id="roll" placeholder="Roll No">
 <select id="items"></select>
 <input id="qty" type="number" placeholder="Qty">
+<button onclick="add()">Add</button>
 <button onclick="issue()">Issue</button>
 
-<h3>Return Item</h3>
+<h2>Return Items</h2>
 <input id="rroll" placeholder="Roll No">
-<select id="condition">
-<option>Good</option>
-<option>Damaged</option>
-<option>Lost</option>
-</select>
+<label><input type="checkbox" id="damage">Damaged</label>
+<label><input type="checkbox" id="lost">Lost</label>
 <button onclick="ret()">Return</button>
 
-<h3>Inventory</h3>
+<h2>Inventory</h2>
 <table border="1" width="100%">
-<thead><tr><th>Name</th><th>Available</th></tr></thead>
+<thead>
+<tr><th>Item</th><th>Available</th></tr>
+</thead>
 <tbody id="inv"></tbody>
 </table>
 
 </div>
+
 </div>
 
 <script>
-const URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec";
+const URL = "PASTE_YOUR_WEB_APP_URL";
 const KEY = "FAST_API_KEY_123";
 
-let items=[];
+let items = [];
+let cart = [];
 
 async function api(action,data={}){
-let r=await fetch(URL,{
+let res = await fetch(URL,{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({apiKey:KEY,action,...data})
 });
-return await r.json();
+return await res.json();
 }
 
 async function login(){
-let u=user.value,p=pass.value;
-let r=await api("login",{user:u,pass:p});
+let user = document.getElementById("user").value;
+let pass = document.getElementById("pass").value;
+
+let r = await api("login",{user,pass});
+
 if(r.status=="success"){
-panel.style.display="block";
+document.getElementById("panel").style.display="block";
 load();
-}else alert("Login failed");
+}else{
+alert("Invalid Login");
+}
 }
 
 async function load(){
-let r=await api("getInventory");
-items=r.data;
-let h="",opt="";
+let r = await api("getInventory");
+
+items = r.data;
+
+let html = "";
+let opt = "";
+
 items.forEach(i=>{
-h+=`<tr class="${i.available<3?'low':''}"><td>${i.name}</td><td>${i.available}</td></tr>`;
-opt+=`<option value="${i.id}">${i.name}</option>`;
+html += `<tr class="${i.available<3?'low':''}">
+<td>${i.name}</td>
+<td>${i.available}</td>
+</tr>`;
+
+opt += `<option value="${i.id}">${i.name}</option>`;
 });
-inv.innerHTML=h;
-itemsSel.innerHTML=opt;
+
+document.getElementById("inv").innerHTML = html;
+document.getElementById("items").innerHTML = opt;
+}
+
+function add(){
+let id = document.getElementById("items").value;
+let qty = parseInt(document.getElementById("qty").value);
+
+let item = items.find(i=>i.id==id);
+
+cart.push({id:item.id,name:item.name,qty:qty});
+
+alert("Item Added");
 }
 
 async function issue(){
-let roll=document.getElementById("roll").value;
-let itemId=itemsSel.value;
-let qty=parseInt(document.getElementById("qty").value);
-let r=await api("issue",{roll,itemId,qty});
+let roll = document.getElementById("roll").value;
+
+let r = await api("issueItems",{roll,cart});
+
 alert(r.message);
+cart = [];
 load();
 }
 
 async function ret(){
-let roll=document.getElementById("rroll").value;
-let condition=document.getElementById("condition").value;
-let r=await api("return",{roll,condition});
+let roll = document.getElementById("rroll").value;
+let damage = document.getElementById("damage").checked;
+let lost = document.getElementById("lost").checked;
+
+let r = await api("returnItems",{roll,damage,lost});
+
 alert(r.message);
 load();
 }
 </script>
+
 </body>
 </html>
