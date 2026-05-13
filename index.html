@@ -1,932 +1,1396 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAST NUCES Sports Inventory</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        :root { --bg-color: #f4f7f6; --card-bg: white; --text-main: #333; --border-color: #ddd; --input-bg: white; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-main); transition: background 0.3s, color 0.3s; }
-        .uni-header { background: #003366; color: white; text-align: center; padding: 20px; border-bottom: 5px solid #d9534f; position: relative; }
-        .uni-logo { height: 70px; margin-bottom: 10px; filter: brightness(0) invert(1); }
-        .main-card { max-width: 800px; margin: 20px auto; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: background 0.3s; }
-        .overlay-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,51,102,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white; }
-        .login-box { background: var(--card-bg); padding: 30px; border-radius: 10px; color: var(--text-main); width: 80%; max-width: 350px; text-align: center; }
-        #scanner-modal { display: none; z-index: 3000; }
-        #reader { width: 100%; max-width: 400px; background: var(--card-bg); padding: 10px; border-radius: 10px; color: black; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 5px; box-sizing: border-box; }
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; color: white;}
-        .btn-primary { background: #003366; } .btn-primary:hover { background: #002244; }
-        .btn-success { background: #28a745; }
-        .btn-danger { background: #d9534f; }
-        .btn-view { background: #6c757d; margin-top: 20px; }
-        .btn-print { background: #17a2b8; margin-top: 0; width: auto; padding: 8px 15px; }
-        .input-group { display: flex; gap: 10px; align-items: center; }
-        .input-group input { margin: 0; }
-        .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
-        
-        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .tab-btn { flex: 1; padding: 10px; text-align: center; background: #e9ecef; border-radius: 5px; cursor: pointer; font-weight: bold; color: #333;}
-        .tab-btn.active { background: #003366; color: white; }
-        .tab-btn.logout-btn { background: #d9534f; color: white; flex: 0.5; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .admin-only { display: none; }
-        .public-only { display: none; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-        th { background-color: rgba(0,0,0,0.05); }
-        .row-overdue { background-color: rgba(255, 193, 7, 0.2); }
-        .badge { padding: 3px 8px; border-radius: 12px; font-size: 12px; color: white; font-weight: bold;}
-        .badge-open { background: #d9534f; }
-        .badge-closed { background: #28a745; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAST NUCES Sports Inventory</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-color: #f4f7fb;
+      --card-bg: #ffffff;
+      --text-main: #243040;
+      --text-muted: #6b7280;
+      --border-color: #d8dee8;
+      --input-bg: #ffffff;
+      --primary: #003366;
+      --primary-dark: #002244;
+      --success: #28a745;
+      --danger: #d9534f;
+      --warning: #ffc107;
+      --info: #17a2b8;
+      --shadow: 0 10px 25px rgba(0,0,0,0.09);
+    }
 
-        .filter-container { margin-top: 15px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
-        .filter-btn { padding: 5px 12px; border: 1px solid var(--border-color); border-radius: 20px; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-size: 14px;}
-        .filter-btn.active-filter { background: #003366; color: white; border-color: #003366; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: var(--bg-color);
+      color: var(--text-main);
+      transition: background 0.3s, color 0.3s;
+    }
 
-        body.dark-mode { --bg-color: #121212; --card-bg: #1e1e1e; --text-main: #e0e0e0; --border-color: #444; --input-bg: #333; }
-        .dark-mode .tab-btn { background: #333; color: #aaa; }
-        .dark-mode .tab-btn.active { background: #003366; color: white; }
-        .dark-mode #finePaymentContainer { background: #4a3b14 !important; border-color: #5c4b1a !important; color: #ffd700; }
-        .dark-mode #finePaymentContainer p { color: #ffd700 !important; }
-        .dark-mode .row-overdue { background-color: #5c3a21; }
-        #darkModeToggle { position: absolute; top: 20px; right: 20px; background: transparent; border: none; font-size: 24px; cursor: pointer; width: auto; margin: 0; }
-    </style>
+    body.dark-mode {
+      --bg-color: #111827;
+      --card-bg: #1f2937;
+      --text-main: #e5e7eb;
+      --text-muted: #aab2c0;
+      --border-color: #374151;
+      --input-bg: #111827;
+      --shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+
+    .uni-header {
+      background: var(--primary);
+      color: white;
+      text-align: center;
+      padding: 22px 16px;
+      border-bottom: 5px solid var(--danger);
+      position: relative;
+    }
+
+    .uni-logo { height: 70px; margin-bottom: 10px; filter: brightness(0) invert(1); }
+    .main-card { max-width: 1180px; margin: 20px auto; background: var(--card-bg); padding: 24px; border-radius: 16px; box-shadow: var(--shadow); transition: background 0.3s; }
+
+    .overlay-bg {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,51,102,0.98);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 2000; color: white;
+      padding: 16px; box-sizing: border-box;
+    }
+
+    .login-box {
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 14px;
+      color: var(--text-main);
+      width: 92%; max-width: 380px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    #scanner-modal { display: none; z-index: 3000; }
+    #reader { width: 100%; max-width: 420px; background: var(--card-bg); padding: 12px; border-radius: 12px; color: black; }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 11px;
+      margin: 8px 0;
+      border: 1px solid var(--border-color);
+      background: var(--input-bg);
+      color: var(--text-main);
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    textarea { min-height: 70px; resize: vertical; }
+    label { font-weight: 700; font-size: 13px; color: var(--text-muted); }
+    .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; width: 100%; margin-top: 10px; color: white; transition: transform 0.1s, opacity 0.2s; }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); }
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--danger); }
+    .btn-view { background: #6c757d; margin-top: 20px; }
+    .btn-info { background: var(--info); }
+    .btn-warning { background: #c88900; }
+    .btn-print { background: var(--info); margin-top: 0; width: auto; padding: 8px 14px; }
+    .btn-small { width: auto; padding: 7px 10px; margin: 2px; font-size: 12px; }
+
+    .input-group { display: flex; gap: 10px; align-items: center; }
+    .input-group input, .input-group select { margin: 0; }
+    .input-group .btn { margin: 0; width: auto; white-space: nowrap; }
+
+    .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn { flex: 1; min-width: 105px; padding: 10px; text-align: center; background: #e9ecef; border-radius: 8px; cursor: pointer; font-weight: 800; color: #333; user-select: none; }
+    .tab-btn.active { background: var(--primary); color: white; }
+    .tab-btn.logout-btn { background: var(--danger); color: white; flex: 0.6; }
+    .dark-mode .tab-btn { background: #374151; color: #d1d5db; }
+    .dark-mode .tab-btn.active { background: var(--primary); color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .admin-only, .public-only { display: none; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { border: 1px solid var(--border-color); padding: 9px; text-align: left; vertical-align: top; }
+    th { background-color: rgba(0,0,0,0.05); font-size: 13px; }
+    .dark-mode th { background: rgba(255,255,255,0.06); }
+    .table-wrap { overflow-x: auto; }
+    .row-overdue { background-color: rgba(255, 193, 7, 0.18); }
+    .dark-mode .row-overdue { background-color: #5c3a21; }
+    .row-low { background-color: rgba(255, 193, 7, 0.16); }
+    .row-out { background-color: rgba(217, 83, 79, 0.14); }
+
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 99px; font-size: 12px; color: white; font-weight: 800; }
+    .badge-open { background: var(--danger); }
+    .badge-closed { background: var(--success); }
+    .badge-info { background: var(--info); }
+    .badge-warning { background: #c88900; }
+    .badge-muted { background: #6b7280; }
+
+    .filter-container { margin: 15px 0 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 6px 13px; border: 1px solid var(--border-color); border-radius: 99px; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-size: 14px; }
+    .filter-btn.active-filter { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 16px 0; }
+    .stat-card { border: 1px solid var(--border-color); border-radius: 14px; padding: 14px; background: rgba(255,255,255,0.5); }
+    .dark-mode .stat-card { background: rgba(255,255,255,0.04); }
+    .stat-card .num { font-size: 25px; font-weight: 900; margin-bottom: 3px; }
+    .stat-card .label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .panel { border: 1px solid var(--border-color); border-radius: 14px; padding: 14px; background: rgba(255,255,255,0.35); }
+    .dark-mode .panel { background: rgba(255,255,255,0.04); }
+
+    .cart-item, .return-item { border: 1px solid var(--border-color); background: rgba(0,0,0,0.03); margin: 8px 0; padding: 12px; border-radius: 10px; }
+    .dark-mode .cart-item, .dark-mode .return-item { background: rgba(255,255,255,0.04); }
+
+    .toast {
+      position: fixed; right: 18px; bottom: 18px; z-index: 4000;
+      background: #111827; color: white; padding: 12px 16px; border-radius: 10px;
+      box-shadow: var(--shadow); opacity: 0; transform: translateY(10px); transition: all .25s;
+      max-width: 360px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: #14532d; }
+    .toast.error { background: #7f1d1d; }
+    .toast.info { background: #0f4c81; }
+
+    #darkModeToggle { position: absolute; top: 18px; right: 18px; background: transparent; border: none; font-size: 24px; cursor: pointer; width: auto; margin: 0; }
+    .muted { color: var(--text-muted); font-size: 13px; }
+    .hidden { display: none !important; }
+    .section-title { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+
+    /* Professional university-style app shell */
+    .main-card {
+      max-width: 1320px;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .tab-bar {
+      grid-column: 1;
+      position: sticky;
+      top: 14px;
+      flex-direction: column;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--card-bg);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+      margin-bottom: 0;
+    }
+    .sidebar-brand {
+      padding: 10px 10px 14px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .sidebar-brand strong { display: block; font-size: 15px; }
+    .sidebar-brand span { display: block; color: var(--text-muted); font-size: 12px; margin-top: 3px; }
+    #sessionBadge { margin-top: 8px; padding: 6px 8px; border-radius: 999px; background: rgba(0,51,102,0.08); color: var(--primary); font-weight: 800; display: inline-block; }
+    .dark-mode #sessionBadge { background: rgba(255,255,255,0.08); color: #bfdbfe; }
+    .tab-btn {
+      width: 100%;
+      flex: none;
+      min-width: 0;
+      text-align: left;
+      border-radius: 12px;
+      padding: 12px 13px;
+      box-sizing: border-box;
+    }
+    .tab-btn.logout-btn { flex: none; margin-top: 6px; }
+    .tab-content {
+      grid-column: 2;
+      min-width: 0;
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+    .fine-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    @media (max-width: 800px) {
+      .main-card { margin: 10px; padding: 0; display: block; }
+      .tab-bar { position: static; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; margin-bottom: 12px; border-radius: 14px; }
+      .sidebar-brand { min-width: 190px; border-bottom: 0; border-right: 1px solid var(--border-color); margin-bottom: 0; }
+      .tab-btn { min-width: 140px; text-align: center; }
+      .tab-content { padding: 16px; border-radius: 14px; }
+      .fine-actions-grid { grid-template-columns: 1fr; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .input-group { flex-direction: column; align-items: stretch; }
+      .input-group .btn { width: 100%; }
+      .uni-header h1 { font-size: 17px !important; }
+      .tab-btn { min-width: 46%; }
+    }
+  </style>
 </head>
 <body>
 
 <div id="login-overlay" class="overlay-bg">
-    <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    
-    <div class="login-box" id="loginFormSection">
-        <h3>Staff Login</h3>
-        <input type="text" id="adminUser" placeholder="Username">
-        <input type="password" id="adminPass" placeholder="Password">
-        <button class="btn btn-primary" onclick="checkLogin()">Login</button>
-        <span style="color: #17a2b8; font-size: 14px; text-decoration: underline; display: block; margin-top: 15px; cursor: pointer;" onclick="togglePasswordSection()">Change Password?</span>
-        <hr>
-        <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
-    </div>
+  <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
+  <div class="login-box" id="loginFormSection">
+    <h3>Staff Login</h3>
+    <input type="text" id="adminUser" placeholder="Username" autocomplete="username">
+    <input type="password" id="adminPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') checkLogin()">
+    <button class="btn btn-primary" onclick="checkLogin()">Login</button>
+    <span style="color: var(--info); font-size: 14px; text-decoration: underline; display: block; margin-top: 15px; cursor: pointer;" onclick="togglePasswordSection()">Change Password?</span>
+    <hr>
+    <button class="btn btn-view" onclick="enterViewOnly()">Public View Only</button>
+  </div>
 
-    <div class="login-box" id="changePasswordSection" style="display: none;">
-        <h3>Change Password</h3>
-        <input type="text" id="cpUser" placeholder="Username">
-        <input type="password" id="cpOldPass" placeholder="Old Password">
-        <input type="password" id="cpNewPass" placeholder="New Password">
-        <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
-        <button class="btn btn-danger" style="margin-top: 10px;" onclick="togglePasswordSection()">Cancel</button>
-    </div>
+  <div class="login-box" id="changePasswordSection" style="display:none;">
+    <h3>Change Password</h3>
+    <input type="text" id="cpUser" placeholder="Username">
+    <input type="password" id="cpOldPass" placeholder="Old Password">
+    <input type="password" id="cpNewPass" placeholder="New Password">
+    <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
+    <button class="btn btn-danger" onclick="togglePasswordSection()">Cancel</button>
+  </div>
 </div>
 
 <div id="scanner-modal" class="overlay-bg">
-    <div id="reader"></div>
-    <button class="btn btn-danger" style="max-width: 400px; margin-top: 20px;" onclick="stopScanner()">Cancel Scan</button>
+  <div id="reader"></div>
+  <button class="btn btn-danger" style="max-width:420px; margin-top:20px;" onclick="stopScanner()">Cancel Scan</button>
 </div>
 
 <div class="uni-header">
-    <button id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
-    <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
-    <h1 style="font-size: 22px; margin: 0;">NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
-    <p style="margin: 5px 0; opacity: 0.9;">Multan Campus</p>
-    <h2 style="font-size: 18px; margin-top: 10px; color: #ffc107;">Sports Inventory System</h2>
+  <button id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
+  <img src="https://www.nu.edu.pk/Content/images/Logo.png" class="uni-logo" alt="FAST Logo">
+  <h1 style="font-size:22px; margin:0;">NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
+  <p style="margin:5px 0; opacity:.9;">Multan Campus</p>
+  <h2 style="font-size:18px; margin-top:10px; color:#ffc107;">Sports Inventory System</h2>
 </div>
 
 <div class="main-card">
-    <div class="tab-bar" id="tabBar">
-        <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
-        <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
-        <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
-        <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Issued Items</div>
-        <div class="tab-btn admin-only" onclick="switchTab('history')">📜 History</div>
-        <div class="tab-btn admin-only" onclick="switchTab('fines')">💰 Fines</div>
-        <div class="tab-btn admin-only" onclick="switchTab('restock')">📦 Restock</div>
-        <div class="tab-btn public-only" onclick="switchTab('studentPortal')">🧑‍🎓 My Portal</div>
-        <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
-        <div class="tab-btn public-only logout-btn" onclick="logout()">🔙 Back</div>
+  <div class="tab-bar" id="tabBar">
+    <div class="sidebar-brand"><strong>Sports Office</strong><span>University inventory control</span><span id="sessionBadge">Public dashboard</span></div>
+    <div class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+    <div class="tab-btn admin-only" onclick="switchTab('issue')">📤 Issue</div>
+    <div class="tab-btn admin-only" onclick="switchTab('return')">📥 Return</div>
+    <div class="tab-btn admin-only" onclick="switchTab('activeIssues')">📋 Issued</div>
+    <div class="tab-btn admin-only" onclick="switchTab('history')">📜 History</div>
+    <div class="tab-btn admin-only" onclick="switchTab('fines')">💰 Fines</div>
+    <div class="tab-btn admin-only" onclick="switchTab('inventoryAdmin')">📦 Inventory</div>
+    <div class="tab-btn admin-only" onclick="switchTab('reports')">🧾 Reports</div>
+    <div class="tab-btn admin-only" onclick="switchTab('settings')">⚙️ Settings</div>
+    <div class="tab-btn public-only" onclick="switchTab('studentPortal')">🧑‍🎓 My Portal</div>
+    <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
+    <div class="tab-btn public-only logout-btn" onclick="logout()">🔙 Back</div>
+  </div>
+
+  <div id="dashboard" class="tab-content active">
+    <div class="section-title">
+      <div>
+        <h3 style="margin:0;">Inventory Dashboard</h3>
+        <div class="muted">Live stock, alerts and analytics</div>
+      </div>
+      <button class="btn btn-print admin-only" onclick="generateReport('inventory', true)">📄 Print Inventory Report</button>
     </div>
 
-    <div id="dashboard" class="tab-content active">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Available Inventory</h3>
-            <button class="btn btn-print admin-only" onclick="generateReport()">📄 Print Official Report</button>
-        </div>
-        
-        <div id="categoryFilters" class="filter-container"></div>
-        
-        <button class="btn btn-primary" style="margin-top: 5px;" onclick="loadDashboard()">Refresh Stock</button>
-        <table>
-            <thead><tr><th>Item Name</th><th>Category</th><th>Available</th><th>Total Owned</th></tr></thead>
-            <tbody id="inventoryTableBody"></tbody>
-        </table>
+    <div id="statsGrid" class="stats-grid"></div>
+
+    <div class="grid-2 admin-only" id="chartsArea">
+      <div class="panel"><h4>Most Borrowed Items</h4><canvas id="borrowedChart" height="170"></canvas></div>
+      <div class="panel"><h4>Category Stock</h4><canvas id="categoryChart" height="170"></canvas></div>
     </div>
 
-    <div id="issue" class="tab-content">
-        <h3>Issue Equipment</h3>
-        <div class="input-group">
-            <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
-            <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
-        <div id="issueStudentInfo" style="margin-top: 10px; color: #17a2b8; font-weight:bold;"></div>
-        
-        <hr>
-        <h4>Select Items</h4>
-        <div style="display: flex; gap: 10px;">
-            <input list="issueItemOptions" id="issueItemSelect" placeholder="🔍 Type to search item..." style="flex: 2;">
-            <datalist id="issueItemOptions"></datalist>
-            <input type="number" id="issueQty" placeholder="Qty" value="1" min="1" style="flex: 1;">
-        </div>
-        
-        <div style="margin-top: 15px; margin-bottom: 15px;">
-            <label for="customDueDate" style="font-weight: bold; font-size: 14px;">Custom Due Date & Time (Optional):</label>
-            <input type="datetime-local" id="customDueDate">
-            <p style="font-size: 12px; margin-top: 2px; opacity: 0.8;">Leave empty to use the default 48-hour return limit.</p>
-        </div>
-
-        <button class="btn btn-primary" style="background:#17a2b8;" onclick="addToCart()">Add to Cart</button>
-        
-        <ul id="cartList" style="list-style: none; padding: 0;"></ul>
-        <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; width:100%; font-size: 18px;">Checkout Now</button>
+    <div class="filter-container">
+      <input type="text" id="dashboardSearch" placeholder="Search item/category..." style="max-width:260px;" oninput="renderInventoryTable()">
+      <div id="categoryFilters" class="filter-container" style="margin:0;"></div>
+      <button class="btn btn-primary btn-small" onclick="loadDashboard()">Refresh</button>
     </div>
 
-    <div id="return" class="tab-content">
-        <h3>Return Equipment</h3>
-        <div class="input-group">
-            <input type="text" id="returnRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
-            <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
-        <div id="returnStudentInfo" style="margin-top: 10px; color: #17a2b8; font-weight:bold;"></div>
-        
-        <div id="finePaymentContainer" style="display:none; background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffeeba;">
-            <p style="margin: 0 0 5px 0; color: #856404; font-weight: bold;">Log Fine Payment</p>
-            <div class="input-group">
-                <input type="number" id="finePayAmount" placeholder="Amount (PKR)">
-                <button class="btn btn-danger" onclick="payFine()">Pay</button>
-            </div>
-        </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th>Available</th><th>Total</th><th>Issued</th><th>Min Stock</th><th>Status</th><th class="admin-only">Action</th></tr></thead>
+        <tbody id="inventoryTableBody"></tbody>
+      </table>
+    </div>
+  </div>
 
-        <hr>
-        <div id="returnItemsContainer"></div>
-        <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
+  <div id="issue" class="tab-content">
+    <h3>Issue Equipment</h3>
+    <div class="input-group">
+      <input type="text" id="issueRollNo" placeholder="Enter Roll No (e.g., 25M-1234) or Scan QR">
+      <button class="btn btn-primary" onclick="startScanner('issue')">📷 Scan QR</button>
+    </div>
+    <button class="btn btn-success" onclick="fetchStudent('issue')">Find Student</button>
+    <div id="issueStudentInfo" style="margin-top:10px; color:var(--info); font-weight:bold;"></div>
+
+    <hr>
+    <h4>Select Items</h4>
+    <div class="grid-3">
+      <div>
+        <label>Item</label>
+        <input list="issueItemOptions" id="issueItemSelect" placeholder="Type to search item...">
+        <datalist id="issueItemOptions"></datalist>
+      </div>
+      <div>
+        <label>Quantity</label>
+        <input type="number" id="issueQty" value="1" min="1">
+      </div>
+      <div>
+        <label>Custom Due Date & Time <span class="muted">(optional)</span></label>
+        <input type="datetime-local" id="customDueDate" onchange="updateDefaultDuePreview()">
+        <div id="defaultDuePreview" class="muted" style="margin-top:4px;">Default due time: 04:40 PM</div>
+        <button type="button" class="btn btn-small btn-view" style="margin-top:6px;" onclick="clearCustomDueDate()">Use System Default</button>
+      </div>
+    </div>
+    <textarea id="issueRemarks" placeholder="Remarks / purpose (optional)"></textarea>
+    <button class="btn btn-info" onclick="addToCart()">Add to Cart</button>
+    <ul id="cartList" style="list-style:none; padding:0;"></ul>
+    <button class="btn btn-success" onclick="checkout()" id="checkoutBtn" style="display:none; font-size:18px;">Checkout Now</button>
+  </div>
+
+  <div id="return" class="tab-content">
+    <h3>Return Equipment</h3>
+    <div class="input-group">
+      <input type="text" id="returnRollNo" placeholder="Enter Roll No or Scan QR">
+      <button class="btn btn-primary" onclick="startScanner('return')">📷 Scan QR</button>
+    </div>
+    <button class="btn btn-success" onclick="fetchStudent('return')">Find Open Items</button>
+    <div id="returnStudentInfo" style="margin-top:10px; color:var(--info); font-weight:bold;"></div>
+
+    <div id="finePaymentContainer" class="panel" style="display:none; background:#fff3cd; margin-top:12px; border-color:#ffeeba; color:#856404;">
+      <div class="section-title">
+        <div>
+          <p style="margin:0; font-weight:900;">Fine Adjustment</p>
+          <div class="muted">Record payment with receipt or withdraw/waive fine with reason.</div>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div>
+          <label>Amount (PKR)</label>
+          <input type="number" id="finePayAmount" placeholder="Amount (PKR)" min="1">
+        </div>
+        <div>
+          <label>Payment Receipt / Approval File</label>
+          <input type="file" id="fineReceiptFile" accept="image/*,.pdf">
+        </div>
+        <div>
+          <label>Remarks / Reason</label>
+          <input type="text" id="fineAdjustmentRemarks" placeholder="Receipt no, bank ref, waiver reason...">
+        </div>
+      </div>
+      <div class="fine-actions-grid">
+        <button class="btn btn-success" onclick="payFine()">Upload Receipt & Record Payment</button>
+        <button class="btn btn-warning" onclick="withdrawFine()">Withdraw / Waive Fine</button>
+      </div>
     </div>
 
-    <div id="activeIssues" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Currently Issued Items</h3>
-            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadActiveIssues()">Refresh List</button>
-        </div>
-        <p style="font-size: 14px; opacity: 0.8;">All students currently holding items. Overdue items are highlighted.</p>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 600px;">
-                <thead>
-                    <tr>
-                        <th>Roll No</th>
-                        <th>Name</th>
-                        <th>Item Issued</th>
-                        <th>Due Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="activeIssuesTableBody">
-                    <tr><td colspan="5" style="text-align:center;">Click "Refresh List" to load currently issued items.</td></tr>
-                </tbody>
-            </table>
-        </div>
+    <hr>
+    <div id="returnItemsContainer"></div>
+    <button class="btn btn-success" onclick="processReturns()" id="processReturnBtn" style="display:none;">Process Returns</button>
+  </div>
+
+  <div id="activeIssues" class="tab-content">
+    <div class="section-title">
+      <div><h3 style="margin:0;">Currently Issued Items</h3><div class="muted">Overdue items are highlighted</div></div>
+      <button class="btn btn-primary btn-print" onclick="loadActiveIssues()">Refresh List</button>
+    </div>
+    <input type="text" id="activeIssueSearch" placeholder="Search roll no, name, item..." oninput="renderActiveIssuesTable()">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Roll No</th><th>Name</th><th>Item</th><th>Issue Date</th><th>Due Date</th><th>Status</th></tr></thead>
+        <tbody id="activeIssuesTableBody"><tr><td colspan="6" style="text-align:center;">Click Refresh List.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="history" class="tab-content">
+    <h3>Student Transaction History</h3>
+    <div class="input-group">
+      <input type="text" id="historyRollNo" placeholder="Enter Roll No or Scan QR">
+      <button class="btn btn-primary" onclick="startScanner('history')">📷 Scan QR</button>
+    </div>
+    <button class="btn btn-success" onclick="fetchStudentHistory()">Search History</button>
+
+    <h4>Borrowing Records</h4>
+    <div class="table-wrap">
+      <table style="font-size:14px;">
+        <thead><tr><th>Item</th><th>Open Qty</th><th>Original Qty</th><th>Issued</th><th>Due</th><th>Returned</th><th>Condition</th><th>Status</th></tr></thead>
+        <tbody id="historyTransTableBody"><tr><td colspan="8" style="text-align:center;">Search a student to view history.</td></tr></tbody>
+      </table>
     </div>
 
-    <div id="history" class="tab-content">
-        <h3>Student Transaction History</h3>
-        <div class="input-group">
-            <input type="text" id="historyRollNo" placeholder="Enter Roll No or Scan QR">
-            <button class="btn btn-primary" onclick="startScanner('history')">📷 Scan QR</button>
-        </div>
-        <button class="btn btn-success" onclick="fetchStudentHistory()">Search History</button>
-        
-        <h4 style="margin-top: 20px;">Borrowing Records</h4>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 600px; font-size: 14px;">
-                <thead><tr><th>Item</th><th>Qty</th><th>Issued</th><th>Returned</th><th>Condition</th><th>Status</th></tr></thead>
-                <tbody id="historyTransTableBody"><tr><td colspan="6" style="text-align:center;">Search a student to view history.</td></tr></tbody>
-            </table>
-        </div>
-
-        <h4 style="margin-top: 20px;">Fines & Damages</h4>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 600px; font-size: 14px;">
-                <thead><tr><th>Date</th><th>Item</th><th>Description</th><th>Amount (PKR)</th><th>Status</th></tr></thead>
-                <tbody id="historyFinesTableBody"><tr><td colspan="5" style="text-align:center;">No fines to display.</td></tr></tbody>
-            </table>
-        </div>
+    <h4>Fines & Payments</h4>
+    <div class="table-wrap">
+      <table style="font-size:14px;">
+        <thead><tr><th>Date</th><th>Item</th><th>Description</th><th>Amount</th><th>Status</th><th>Remarks</th><th>Receipt</th></tr></thead>
+        <tbody id="historyFinesTableBody"><tr><td colspan="7" style="text-align:center;">No fines to display.</td></tr></tbody>
+      </table>
     </div>
+  </div>
 
-    <div id="fines" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Outstanding Fines</h3>
-            <button class="btn btn-primary btn-print" style="margin:0;" onclick="loadPendingFines()">Refresh List</button>
-        </div>
-        <p style="font-size: 14px; opacity: 0.8;">Students who currently owe money to the sports office.</p>
-        <div style="overflow-x: auto;">
-            <table style="min-width: 400px;">
-                <thead><tr><th>Roll No</th><th>Name</th><th>Amount Due</th><th>Action</th></tr></thead>
-                <tbody id="pendingFinesTableBody">
-                    <tr><td colspan="4" style="text-align:center;">Click "Refresh List" to load data.</td></tr>
-                </tbody>
-            </table>
-        </div>
+  <div id="fines" class="tab-content">
+    <div class="section-title">
+      <div><h3 style="margin:0;">Outstanding Fines</h3><div class="muted">Students who owe money to the sports office</div></div>
+      <button class="btn btn-primary btn-print" onclick="loadPendingFines()">Refresh List</button>
     </div>
-
-    <div id="studentPortal" class="tab-content">
-        <h3>Student Portal</h3>
-        <p style="font-size: 14px; opacity: 0.8;">Scan your Smart Card QR to securely view your issued items and fines.</p>
-        <div class="input-group">
-            <input type="text" id="studentPortalRollNo" placeholder="Click 'Scan QR' to read card" readonly>
-            <button class="btn btn-primary" onclick="startScanner('studentPortal')">📷 Scan Smart Card</button>
-        </div>
-        <button class="btn btn-success" style="display:none;" id="portalFetchBtn" onclick="fetchStudentDashboard()">View My Status</button>
-        
-        <div id="studentPortalInfo" style="margin-top: 20px; font-size: 18px; font-weight: bold; text-align: center; color: #003366;"></div>
-        
-        <div id="studentPortalItemsSection" style="display: none;">
-            <h4 style="margin-top: 20px;">Your Currently Issued Items</h4>
-            <table style="font-size: 14px;">
-                <thead><tr><th>Item</th><th>Qty</th><th>Due Date</th></tr></thead>
-                <tbody id="studentPortalItemsTable"></tbody>
-            </table>
-        </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Roll No</th><th>Name</th><th>Amount Due</th><th>Action</th></tr></thead>
+        <tbody id="pendingFinesTableBody"><tr><td colspan="4" style="text-align:center;">Click Refresh List.</td></tr></tbody>
+      </table>
     </div>
+  </div>
 
-    <div id="restock" class="tab-content">
-        <h3>Add or Restock Inventory</h3>
+  <div id="inventoryAdmin" class="tab-content">
+    <h3>Inventory Management</h3>
+    <div class="grid-2">
+      <div class="panel">
+        <h4>Add or Restock</h4>
         <select id="restockType" onchange="toggleRestockType()">
-            <option value="existing">Restock Existing Item</option>
-            <option value="new">Add New Item</option>
+          <option value="existing">Restock Existing Item</option>
+          <option value="new">Add New Item</option>
         </select>
-        
-        <input list="restockItemOptions" id="restockItemSelect" placeholder="🔍 Search existing item...">
+        <input list="restockItemOptions" id="restockItemSelect" placeholder="Search existing item...">
         <datalist id="restockItemOptions"></datalist>
-        
-        <input type="text" id="newItemName" placeholder="Enter New Item Name" style="display:none;">
-        <input type="number" id="restockQty" placeholder="Quantity to Add">
+        <input type="text" id="newItemName" placeholder="New Item Name" style="display:none;">
+        <div class="grid-2">
+          <input type="text" id="newItemCategory" placeholder="Category">
+          <input type="number" id="restockQty" placeholder="Quantity to Add" min="1">
+        </div>
+        <div class="grid-2">
+          <input type="number" id="newItemMinStock" placeholder="Minimum Stock Alert">
+          <input type="number" id="newItemValue" placeholder="Unit Value (PKR)">
+        </div>
+        <div class="grid-2">
+          <input type="text" id="newItemSupplier" placeholder="Supplier">
+          <input type="date" id="newItemPurchaseDate" placeholder="Purchase Date">
+        </div>
+        <input type="url" id="newItemPhoto" placeholder="Photo URL (optional)">
+        <textarea id="newItemNotes" placeholder="Notes"></textarea>
         <button class="btn btn-primary" onclick="submitRestock()">Update Inventory</button>
+      </div>
 
-        <hr style="margin: 30px 0;">
-
-        <h3 style="color: #d9534f;">Report Office Loss</h3>
-        <p style="font-size: 14px; opacity: 0.8; margin-top: -10px;">For items lost directly from the sports room (no student fine).</p>
-        
-        <input list="officeLossItemOptions" id="officeLossItemSelect" placeholder="🔍 Search item to mark lost...">
-        <datalist id="officeLossItemOptions"></datalist>
-        
-        <input type="number" id="officeLossQty" placeholder="Quantity Lost" value="1" min="1">
-        <button class="btn btn-danger" onclick="submitOfficeLoss()">Mark as Lost</button>
+      <div class="panel">
+        <h4>Edit Item Details</h4>
+        <input list="editItemOptions" id="editItemSelect" placeholder="Select item to edit..." onchange="loadItemForEdit()">
+        <datalist id="editItemOptions"></datalist>
+        <input type="hidden" id="editItemId">
+        <input type="text" id="editName" placeholder="Item Name">
+        <input type="text" id="editCategory" placeholder="Category">
+        <div class="grid-2">
+          <input type="number" id="editMinStock" placeholder="Min Stock">
+          <input type="number" id="editUnitValue" placeholder="Unit Value">
+        </div>
+        <input type="text" id="editSupplier" placeholder="Supplier">
+        <input type="url" id="editPhotoUrl" placeholder="Photo URL">
+        <textarea id="editNotes" placeholder="Notes"></textarea>
+        <div class="input-group">
+          <button class="btn btn-success" onclick="saveItemEdits()">Save Item</button>
+          <button class="btn btn-danger" onclick="archiveSelectedItem()">Archive</button>
+        </div>
+      </div>
     </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <h4 style="color:var(--danger);">Report Office Loss</h4>
+      <div class="grid-3">
+        <div><input list="officeLossItemOptions" id="officeLossItemSelect" placeholder="Search item to mark lost..."><datalist id="officeLossItemOptions"></datalist></div>
+        <div><input type="number" id="officeLossQty" placeholder="Quantity Lost" value="1" min="1"></div>
+        <div><input type="text" id="officeLossRemarks" placeholder="Remarks"></div>
+      </div>
+      <button class="btn btn-danger" onclick="submitOfficeLoss()">Mark as Lost</button>
+    </div>
+  </div>
+
+  <div id="reports" class="tab-content">
+    <div class="section-title">
+      <div><h3 style="margin:0;">Reports</h3><div class="muted">Generate printable reports and CSV exports</div></div>
+    </div>
+    <div class="grid-3">
+      <select id="reportType">
+        <option value="inventory">Inventory Report</option>
+        <option value="active">Currently Issued Items</option>
+        <option value="overdue">Overdue Items</option>
+        <option value="fines">Pending Fines</option>
+        <option value="lowStock">Low Stock</option>
+      </select>
+      <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+      <button class="btn btn-info" onclick="exportCurrentReportCsv()">Export CSV</button>
+    </div>
+    <div id="reportPreview" class="table-wrap" style="margin-top:18px;"></div>
+  </div>
+
+  <div id="settings" class="tab-content">
+    <h3>System Settings</h3>
+    <div class="grid-2">
+      <div class="panel">
+        <label>Default Borrow Time (Hours)</label>
+        <input type="number" id="settingBorrowHours">
+        <label>Default Due Time</label>
+        <input type="time" id="settingDefaultDueTime" value="16:40">
+        <div class="muted" style="margin:-3px 0 8px;">Default is 04:40 PM. Custom due date/time can still be selected during issue.</div>
+        <label>Late Fine Per Day (PKR)</label>
+        <input type="number" id="settingLateFine">
+        <label>Auto Register Students</label>
+        <select id="settingAutoRegister"><option>YES</option><option>NO</option></select>
+        <label>Reminder Before Due (Hours)</label>
+        <input type="number" id="settingReminderHours">
+      </div>
+      <div class="panel">
+        <label>Low Stock Default Minimum</label>
+        <input type="number" id="settingLowStockDefault">
+        <label>Admin Email</label>
+        <input type="email" id="settingAdminEmail">
+        <label>Campus Name</label>
+        <input type="text" id="settingCampusName">
+        <label>University Name</label>
+        <input type="text" id="settingUniversityName">
+      </div>
+    </div>
+    <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
+  </div>
+
+  <div id="studentPortal" class="tab-content">
+    <h3>Student Portal</h3>
+    <p class="muted">Scan your smart card QR to securely view issued items and fines.</p>
+    <div class="input-group">
+      <input type="text" id="studentPortalRollNo" placeholder="Click Scan QR to read card" readonly>
+      <button class="btn btn-primary" onclick="startScanner('studentPortal')">📷 Scan Smart Card</button>
+    </div>
+    <button class="btn btn-success" style="display:none;" id="portalFetchBtn" onclick="fetchStudentDashboard()">View My Status</button>
+    <div id="studentPortalInfo" style="margin-top:20px; font-size:18px; font-weight:bold; text-align:center; color:var(--primary);"></div>
+    <div id="studentPortalItemsSection" style="display:none;">
+      <h4>Your Currently Issued Items</h4>
+      <div class="table-wrap">
+        <table style="font-size:14px;">
+          <thead><tr><th>Item</th><th>Qty</th><th>Due Date</th><th>Status</th></tr></thead>
+          <tbody id="studentPortalItemsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec"; 
+  // Replace this URL if you redeploy your Apps Script Web App.
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrNylfB-I4dw2tFFBn0RWBJX-JVgRJlD-15K9-TBq_1UcSi2B2VWEa93SE5XRrdaz0Sg/exec";
 
-    let cart = [];
-    let currentInventoryData = [];
-    let currentCategoryFilter = 'All'; 
+  let cart = [];
+  let currentInventoryData = [];
+  let currentAnalytics = null;
+  let currentActiveIssues = [];
+  let currentCategoryFilter = 'All';
+  let systemSettings = {
+    borrowHours: 48,
+    defaultDueTime: '16:40',
+    lateFine: 50,
+    autoRegister: 'YES',
+    reminderHours: 24,
+    lowStockDefault: 2,
+    adminEmail: '',
+    campusName: 'Multan Campus',
+    universityName: 'NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES'
+  };
+  let currentReportRows = [];
+  let currentReportTitle = '';
+  let isAdminMode = false;
+  let borrowedChart = null;
+  let categoryChart = null;
+  let html5QrcodeScanner = null;
+  let currentScanMode = '';
 
-    window.onload = () => {
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-            document.getElementById('darkModeToggle').innerText = '☀️';
-        }
-    };
+  window.onload = () => {
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.body.classList.add('dark-mode');
+      document.getElementById('darkModeToggle').innerText = '☀️';
+    }
+    const savedToken = localStorage.getItem('sportsAdminToken');
+    if (savedToken) {
+      isAdminMode = true;
+      document.getElementById('login-overlay').style.display = 'none';
+      setModeUI('admin');
+      loadSystemSettingsSilently();
+    }
+    updateDefaultDuePreview();
+    loadDashboard();
+  };
 
-    function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        let isDark = document.body.classList.contains('dark-mode');
-        localStorage.setItem('darkMode', isDark);
-        document.getElementById('darkModeToggle').innerText = isDark ? '☀️' : '🌙';
+  function getToken() { return localStorage.getItem('sportsAdminToken') || ''; }
+  function setToken(token, user) { localStorage.setItem('sportsAdminToken', token); localStorage.setItem('sportsAdminUser', user || 'Admin'); }
+
+  function formatDateTimeLocal(date) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function computeDefaultDueDate() {
+    const borrowHours = Number(systemSettings.borrowHours || 48);
+    const due = new Date(Date.now() + borrowHours * 60 * 60 * 1000);
+    const timeStr = systemSettings.defaultDueTime || '16:40';
+    const [hh, mm] = timeStr.split(':').map(Number);
+    due.setHours(Number.isFinite(hh) ? hh : 16, Number.isFinite(mm) ? mm : 40, 0, 0);
+    if (due <= new Date()) due.setDate(due.getDate() + 1);
+    return due;
+  }
+
+  function updateDefaultDuePreview() {
+    const el = document.getElementById('defaultDuePreview');
+    if (!el) return;
+    const custom = document.getElementById('customDueDate')?.value;
+    if (custom) {
+      el.textContent = 'Custom due selected: ' + new Date(custom).toLocaleString();
+      return;
+    }
+    const due = computeDefaultDueDate();
+    el.textContent = 'System default due: ' + due.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) + ' (default time 04:40 PM)';
+  }
+
+  function clearCustomDueDate() {
+    document.getElementById('customDueDate').value = '';
+    updateDefaultDuePreview();
+  }
+
+  async function loadSystemSettingsSilently() {
+    if (!getToken()) return;
+    const data = await callApi('apiGetSettings', {}, true);
+    if (data && data.success) {
+      systemSettings = Object.assign(systemSettings, data.settings || {});
+      updateDefaultDuePreview();
+    }
+  }
+
+  async function callApi(action, params = {}, needsAuth = false) {
+    const payload = Object.assign({}, params, { action, token: getToken() });
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data && data.authRequired) {
+        toast(data.message || 'Session expired. Login again.', 'error');
+        logout();
+        return null;
+      }
+      return data;
+    } catch (error) {
+      console.error(error);
+      toast('Connection error. Check Web App URL and deployment access.', 'error');
+      return null;
+    }
+  }
+
+  function toast(message, type = 'info') {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.className = 'toast show ' + type;
+    setTimeout(() => el.className = 'toast ' + type, 3500);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]));
+  }
+
+  function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+    document.getElementById('darkModeToggle').innerText = isDark ? '☀️' : '🌙';
+  }
+
+  function togglePasswordSection() {
+    const loginSec = document.getElementById('loginFormSection');
+    const passSec = document.getElementById('changePasswordSection');
+    const showingPass = passSec.style.display === 'block';
+    loginSec.style.display = showingPass ? 'block' : 'none';
+    passSec.style.display = showingPass ? 'none' : 'block';
+  }
+
+  async function checkLogin() {
+    const user = document.getElementById('adminUser').value.trim();
+    const pass = document.getElementById('adminPass').value;
+    if (!user || !pass) return toast('Enter username and password.', 'error');
+    const btn = document.querySelector('#loginFormSection .btn-primary');
+    if (btn) { btn.disabled = true; btn.innerText = 'Logging in...'; }
+    const data = await callApi('adminLogin', { user, pass });
+    if (btn) { btn.disabled = false; btn.innerText = 'Login'; }
+    if (data && data.success) {
+      setToken(data.token, data.user);
+      isAdminMode = true;
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('adminPass').value = '';
+      setModeUI('admin');
+      toast('Login successful.', 'success');
+      loadSystemSettingsSilently();
+      loadDashboard();
+    } else {
+      toast(data ? data.message : 'Login failed.', 'error');
+    }
+  }
+
+  async function changeAdminPassword() {
+    const user = document.getElementById('cpUser').value.trim();
+    const oldPass = document.getElementById('cpOldPass').value;
+    const newPass = document.getElementById('cpNewPass').value;
+    if (!getToken()) return toast('Login first, then change password.', 'error');
+    const data = await callApi('adminChangePassword', { user, oldPass, newPass }, true);
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('cpOldPass').value = '';
+      document.getElementById('cpNewPass').value = '';
+      togglePasswordSection();
+    } else toast(data ? data.message : 'Password update failed.', 'error');
+  }
+
+  function preferredDisplay(el) {
+    const tag = el.tagName ? el.tagName.toLowerCase() : '';
+    if (tag === 'th' || tag === 'td') return 'table-cell';
+    if (el.classList.contains('btn-print') || el.classList.contains('btn-small')) return 'inline-block';
+    if (el.classList.contains('tab-btn')) return 'block';
+    if (el.id === 'chartsArea') return 'grid';
+    return 'block';
+  }
+
+  function setModeUI(mode) {
+    const badge = document.getElementById('sessionBadge');
+    if (badge) badge.textContent = mode === 'admin' ? ('Signed in: ' + (localStorage.getItem('sportsAdminUser') || 'Admin')) : (mode === 'public' ? 'Public view only' : 'Login required');
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.style.display = mode === 'admin' ? preferredDisplay(el) : 'none';
+    });
+    document.querySelectorAll('.public-only').forEach(el => {
+      el.style.display = mode === 'public' ? preferredDisplay(el) : 'none';
+    });
+  }
+
+  function enterViewOnly() {
+    isAdminMode = false;
+    document.getElementById('login-overlay').style.display = 'none';
+    setModeUI('public');
+    switchTab('dashboard');
+  }
+
+  function logout() {
+    localStorage.removeItem('sportsAdminToken');
+    localStorage.removeItem('sportsAdminUser');
+    isAdminMode = false;
+    setModeUI('none');
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('studentPortalRollNo').value = '';
+    document.getElementById('studentPortalInfo').innerHTML = '';
+    document.getElementById('studentPortalItemsSection').style.display = 'none';
+    switchTab('dashboard');
+  }
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById(tabId);
+    if (target) target.classList.add('active');
+    const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick') === `switchTab('${tabId}')`);
+    if (btn) btn.classList.add('active');
+    document.querySelectorAll('.logout-btn').forEach(btn => btn.classList.remove('active'));
+
+    if (tabId === 'dashboard') loadDashboard();
+    if (tabId === 'issue') updateDefaultDuePreview();
+    if (tabId === 'activeIssues') loadActiveIssues();
+    if (tabId === 'fines') loadPendingFines();
+    if (tabId === 'inventoryAdmin') populateAdminItemLists();
+    if (tabId === 'reports') generateReport('inventory', false);
+    if (tabId === 'settings') loadSettings();
+  }
+
+  function startScanner(mode) {
+    currentScanMode = mode;
+    document.getElementById('scanner-modal').style.display = 'flex';
+    html5QrcodeScanner = new Html5QrcodeScanner('reader', { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+    html5QrcodeScanner.render((text) => {
+      stopScanner();
+      const input = document.getElementById(currentScanMode + 'RollNo');
+      if (input) input.value = text;
+      if (currentScanMode === 'studentPortal') fetchStudentDashboard();
+      else if (currentScanMode === 'history') fetchStudentHistory();
+      else fetchStudent(currentScanMode);
+    }, () => {});
+  }
+
+  function stopScanner() {
+    if (html5QrcodeScanner) html5QrcodeScanner.clear();
+    document.getElementById('scanner-modal').style.display = 'none';
+  }
+
+  async function loadDashboard() {
+    const data = await callApi('apiGetInventory', { includeInactive: isAdminMode ? 'true' : 'false' });
+    if (!data || !data.success) return;
+    currentInventoryData = data.items || [];
+    renderCategoryFilters(currentInventoryData);
+    renderInventoryTable();
+    populateDatalists();
+
+    if (isAdminMode && getToken()) {
+      const analytics = await callApi('apiGetAnalytics', {}, true);
+      if (analytics && analytics.success) {
+        currentAnalytics = analytics;
+        renderStats(analytics.summary);
+        renderCharts(analytics);
+        document.getElementById('chartsArea').style.display = 'grid';
+      }
+    } else {
+      document.getElementById('chartsArea').style.display = 'none';
+      const total = currentInventoryData.reduce((s, i) => s + Number(i.total || 0), 0);
+      const available = currentInventoryData.reduce((s, i) => s + Number(i.available || 0), 0);
+      renderStats({ totalItems: currentInventoryData.length, totalOwned: total, available, issued: total - available, lowStock: 0, overdue: 0, pendingFineTotal: 0 });
+    }
+  }
+
+  function renderStats(s) {
+    const stats = [
+      ['Total Items', s.totalItems || 0], ['Total Owned', s.totalOwned || 0], ['Available', s.available || 0], ['Issued', s.issued || 0],
+      ['Low Stock', s.lowStock || 0], ['Out of Stock', s.outOfStock || 0], ['Overdue', s.overdue || 0], ['Pending Fines', 'PKR ' + (s.pendingFineTotal || 0)]
+    ];
+    document.getElementById('statsGrid').innerHTML = stats.map(x => `<div class="stat-card"><div class="num">${escapeHtml(x[1])}</div><div class="label">${escapeHtml(x[0])}</div></div>`).join('');
+  }
+
+  function renderCharts(analytics) {
+    if (!window.Chart) return;
+    const borrowedCtx = document.getElementById('borrowedChart');
+    const categoryCtx = document.getElementById('categoryChart');
+    if (borrowedChart) borrowedChart.destroy();
+    if (categoryChart) categoryChart.destroy();
+
+    const borrowed = analytics.mostBorrowed || [];
+    borrowedChart = new Chart(borrowedCtx, {
+      type: 'bar',
+      data: { labels: borrowed.map(x => x.item), datasets: [{ label: 'Borrowed Count', data: borrowed.map(x => x.count) }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    const categories = analytics.categoryStats || [];
+    categoryChart = new Chart(categoryCtx, {
+      type: 'doughnut',
+      data: { labels: categories.map(x => x.category), datasets: [{ label: 'Available', data: categories.map(x => x.available) }] },
+      options: { responsive: true }
+    });
+  }
+
+  function renderCategoryFilters(items) {
+    const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
+    const container = document.getElementById('categoryFilters');
+    container.innerHTML = `<button class="filter-btn ${currentCategoryFilter === 'All' ? 'active-filter' : ''}" onclick="applyFilter('All')">All</button>`;
+    categories.forEach(cat => {
+      container.innerHTML += `<button class="filter-btn ${currentCategoryFilter === cat ? 'active-filter' : ''}" onclick="applyFilter('${escapeJs(cat)}')">${escapeHtml(cat)}</button>`;
+    });
+  }
+
+  function escapeJs(str) { return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+  function applyFilter(category) {
+    currentCategoryFilter = category;
+    renderCategoryFilters(currentInventoryData);
+    renderInventoryTable();
+  }
+
+  function renderInventoryTable() {
+    const tbody = document.getElementById('inventoryTableBody');
+    const search = (document.getElementById('dashboardSearch')?.value || '').toLowerCase();
+    tbody.innerHTML = '';
+    const settingsMin = currentAnalytics?.summary ? 2 : 2;
+    const rows = currentInventoryData.filter(item => {
+      const matchCategory = currentCategoryFilter === 'All' || item.category === currentCategoryFilter;
+      const matchSearch = !search || [item.name, item.category, item.id].join(' ').toLowerCase().includes(search);
+      const activeOk = isAdminMode || item.active;
+      return matchCategory && matchSearch && activeOk;
+    });
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No inventory items found.</td></tr>`;
+      return;
     }
 
-    async function callApi(action, params = {}) {
-        params.action = action;
-        let url = new URL(SCRIPT_URL);
-        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-        
-        try {
-            let response = await fetch(url);
-            return await response.json();
-        } catch (error) {
-            alert("Connection error. Ensure your GAS Web App is set to 'Anyone'.");
-            console.error(error);
-        }
+    rows.forEach(item => {
+      const min = Number(item.minStock || settingsMin || 0);
+      const status = !item.active ? '<span class="badge badge-muted">Archived</span>' : item.available <= 0 ? '<span class="badge badge-open">Out</span>' : item.available <= min ? '<span class="badge badge-warning">Low</span>' : '<span class="badge badge-closed">OK</span>';
+      const rowClass = item.available <= 0 ? 'row-out' : (item.available <= min ? 'row-low' : '');
+      tbody.innerHTML += `<tr class="${rowClass}">
+        <td><b>${escapeHtml(item.name)}</b><br><span class="muted">${escapeHtml(item.id)}</span></td>
+        <td>${escapeHtml(item.category)}</td>
+        <td><b>${escapeHtml(item.available)}</b></td>
+        <td>${escapeHtml(item.total)}</td>
+        <td>${escapeHtml(item.issued)}</td>
+        <td>${escapeHtml(item.minStock || '-')}</td>
+        <td>${status}</td>
+        <td class="admin-only" style="display:${isAdminMode ? 'table-cell' : 'none'};"><button class="btn btn-info btn-small" onclick="editItemById('${escapeJs(item.id)}')">Edit</button></td>
+      </tr>`;
+    });
+  }
+
+  function populateDatalists() {
+    const issue = document.getElementById('issueItemOptions');
+    const restock = document.getElementById('restockItemOptions');
+    const office = document.getElementById('officeLossItemOptions');
+    const edit = document.getElementById('editItemOptions');
+    [issue, restock, office, edit].forEach(el => { if (el) el.innerHTML = ''; });
+    currentInventoryData.forEach(item => {
+      if (issue && item.active && item.available > 0) issue.innerHTML += `<option value="${escapeHtml(item.name)}">Available: ${escapeHtml(item.available)}</option>`;
+      if (restock) restock.innerHTML += `<option value="${escapeHtml(item.name)}">${escapeHtml(item.id)}</option>`;
+      if (office && item.active) office.innerHTML += `<option value="${escapeHtml(item.name)}">Available: ${escapeHtml(item.available)}</option>`;
+      if (edit) edit.innerHTML += `<option value="${escapeHtml(item.name)}">${escapeHtml(item.id)}</option>`;
+    });
+  }
+
+  function populateAdminItemLists() { populateDatalists(); }
+
+  async function fetchStudent(mode) {
+    const inputValue = document.getElementById(mode + 'RollNo').value.trim();
+    if (!inputValue) return toast('Enter roll number or scan QR.', 'error');
+    const data = await callApi('apiGetStudent', { qrData: inputValue }, true);
+    if (!data || !data.success) return toast(data ? data.message : 'Student not found.', 'error');
+
+    document.getElementById(mode + 'RollNo').value = data.rollNo;
+    const autoBadge = data.message === 'Auto-registered!' ? ' <span style="color:var(--success);">(New Registration)</span>' : '';
+    document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${escapeHtml(data.name)} | Fines: PKR ${escapeHtml(data.fines)}${autoBadge}`;
+
+    if (mode === 'return') {
+      const box = document.getElementById('finePaymentContainer');
+      if (Number(data.fines) > 0) {
+        box.style.display = 'block';
+        document.getElementById('finePayAmount').value = data.fines;
+        document.getElementById('fineAdjustmentRemarks').value = '';
+        document.getElementById('fineReceiptFile').value = '';
+      } else box.style.display = 'none';
+      fetchOpenTransactions(data.rollNo);
     }
+  }
 
-    function togglePasswordSection() {
-        let loginSec = document.getElementById("loginFormSection");
-        let passSec = document.getElementById("changePasswordSection");
-        
-        if (passSec.style.display === "none" || passSec.style.display === "") {
-            loginSec.style.display = "none";
-            passSec.style.display = "block";
-        } else {
-            loginSec.style.display = "block";
-            passSec.style.display = "none";
-        }
+  function addToCart() {
+    const itemName = document.getElementById('issueItemSelect').value.trim();
+    const qty = parseInt(document.getElementById('issueQty').value, 10);
+    const selected = currentInventoryData.find(i => i.name === itemName || i.id === itemName);
+    if (!selected || !selected.active) return toast('Select a valid active item.', 'error');
+    if (!qty || qty < 1) return toast('Enter valid quantity.', 'error');
+    const already = cart.filter(c => c.itemName === selected.name).reduce((s, c) => s + c.qty, 0);
+    if (already + qty > selected.available) return toast(`Only ${selected.available} available for ${selected.name}.`, 'error');
+    cart.push({ itemName: selected.name, itemId: selected.id, qty });
+    updateCartUI();
+    document.getElementById('issueItemSelect').value = '';
+    document.getElementById('issueQty').value = '1';
+  }
+
+  function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
+
+  function updateCartUI() {
+    const list = document.getElementById('cartList');
+    list.innerHTML = cart.map((item, index) => `<li class="cart-item" style="display:flex; justify-content:space-between; align-items:center;"><span><b>${item.qty}x</b> ${escapeHtml(item.itemName)}</span><span style="cursor:pointer; color:var(--danger); font-size:18px;" onclick="removeFromCart(${index})">❌</span></li>`).join('');
+    document.getElementById('checkoutBtn').style.display = cart.length ? 'block' : 'none';
+  }
+
+  async function checkout() {
+    const currentInput = document.getElementById('issueRollNo').value.trim();
+    if (!currentInput) return toast('Find/scan a student first.', 'error');
+    if (!cart.length) return toast('Cart is empty.', 'error');
+    const btn = document.getElementById('checkoutBtn');
+    btn.disabled = true; btn.innerText = 'Processing...';
+    const data = await callApi('apiIssueItems', {
+      qrData: currentInput,
+      cart: JSON.stringify(cart),
+      customDueDate: document.getElementById('customDueDate').value,
+      remarks: document.getElementById('issueRemarks').value
+    }, true);
+    btn.disabled = false; btn.innerText = 'Checkout Now';
+    if (data && data.success) {
+      toast(data.message, 'success');
+      cart = []; updateCartUI();
+      document.getElementById('issueRollNo').value = '';
+      document.getElementById('issueStudentInfo').innerHTML = '';
+      document.getElementById('customDueDate').value = '';
+      document.getElementById('issueRemarks').value = '';
+      loadDashboard();
+    } else toast(data ? data.message : 'Issue failed.', 'error');
+  }
+
+  async function fetchOpenTransactions(rollNo) {
+    const data = await callApi('apiGetOpenTransactions', { rollNo }, true);
+    const container = document.getElementById('returnItemsContainer');
+    const btn = document.getElementById('processReturnBtn');
+    container.innerHTML = '';
+    btn.style.display = 'none';
+    if (!data || !data.success || !data.items.length) {
+      container.innerHTML = '<p>No open items.</p>';
+      return;
     }
+    data.items.forEach(item => {
+      container.innerHTML += `<div class="return-item" data-id="${escapeHtml(item.transactionId)}" data-itemid="${escapeHtml(item.itemId)}">
+        <p><b>${escapeHtml(item.itemName)}</b> <span class="muted">Due: ${escapeHtml(item.dueDate)}</span> ${item.isOverdue ? '<span class="badge badge-open">Overdue</span>' : '<span class="badge badge-closed">On Time</span>'}</p>
+        <div class="grid-3">
+          <div><label>Return Qty</label><input type="number" class="retQtyInput" value="${escapeHtml(item.qty)}" max="${escapeHtml(item.qty)}" min="0"></div>
+          <div><label>Condition</label><select class="condSelect" onchange="toggleFine(this)"><option value="Good">Good</option><option value="Damaged">Damaged</option><option value="Consumed">Consumed</option><option value="Lost">Lost by Student</option></select></div>
+          <div><label>Fine PKR</label><input type="number" class="fineInput" value="0" min="0" disabled></div>
+        </div>
+        <textarea class="returnRemarks" placeholder="Return remarks / damage details"></textarea>
+      </div>`;
+    });
+    btn.style.display = 'block';
+  }
 
-    async function changeAdminPassword() {
-        let user = document.getElementById("cpUser").value;
-        let oldPass = document.getElementById("cpOldPass").value;
-        let newPass = document.getElementById("cpNewPass").value;
+  function toggleFine(select) {
+    const box = select.closest('.return-item');
+    const fine = box.querySelector('.fineInput');
+    const condition = select.value;
+    fine.disabled = !(condition === 'Damaged' || condition === 'Lost');
+    if (fine.disabled) fine.value = '0';
+  }
 
-        if (!user || !oldPass || !newPass) return alert("Please fill in all fields to change your password.");
+  async function processReturns() {
+    const returnData = [];
+    document.querySelectorAll('.return-item').forEach(div => {
+      const q = parseInt(div.querySelector('.retQtyInput').value, 10);
+      const max = parseInt(div.querySelector('.retQtyInput').getAttribute('max'), 10);
+      if (q > max) return toast('Return quantity cannot exceed issued quantity.', 'error');
+      if (q > 0) returnData.push({
+        transactionId: div.dataset.id,
+        itemId: div.dataset.itemid,
+        qty: q,
+        condition: div.querySelector('.condSelect').value,
+        fineAmount: div.querySelector('.fineInput').value || 0,
+        remarks: div.querySelector('.returnRemarks').value || ''
+      });
+    });
+    if (!returnData.length) return toast('Return at least 1 item.', 'error');
+    const btn = document.getElementById('processReturnBtn');
+    btn.disabled = true; btn.innerText = 'Processing...';
+    const data = await callApi('apiProcessReturns', { rollNo: document.getElementById('returnRollNo').value, returns: JSON.stringify(returnData) }, true);
+    btn.disabled = false; btn.innerText = 'Process Returns';
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('returnItemsContainer').innerHTML = '';
+      btn.style.display = 'none';
+      fetchStudent('return');
+      loadDashboard();
+    } else toast(data ? data.message : 'Return failed.', 'error');
+  }
 
-        let btn = document.querySelector("#changePasswordSection .btn-primary");
-        btn.innerText = "Updating...";
-        btn.disabled = true;
-
-        let data = await callApi('adminChangePassword', { user: user, oldPass: oldPass, newPass: newPass });
-        
-        if (data && data.success) {
-            alert("✅ " + data.message);
-            document.getElementById("cpOldPass").value = "";
-            document.getElementById("cpNewPass").value = "";
-            togglePasswordSection();
-        } else {
-            alert("❌ " + (data ? data.message : "Error connecting to server."));
-        }
-
-        btn.innerText = "Update Password";
-        btn.disabled = false;
+  function fileToPayload(inputId) {
+    const input = document.getElementById(inputId);
+    const file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (!file) return Promise.resolve({});
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast('Receipt file is too large. Please upload a file under 5MB.', 'error');
+      return Promise.resolve(null);
     }
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ receiptData: reader.result, receiptName: file.name, receiptMime: file.type || 'application/octet-stream' });
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
 
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
-        let targetTab = document.getElementById(tabId);
-        if(targetTab) targetTab.classList.add('active');
-        
-        let targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick') === `switchTab('${tabId}')`);
-        if(targetBtn) targetBtn.classList.add('active');
-        
-        document.querySelectorAll('.logout-btn').forEach(btn => btn.classList.remove('active'));
-        
-        if(tabId === 'dashboard') loadDashboard();
-        if(tabId === 'activeIssues') loadActiveIssues(); 
-        if(tabId === 'fines') loadPendingFines();
+  async function payFine() {
+    const amt = document.getElementById('finePayAmount').value;
+    const rollNo = document.getElementById('returnRollNo').value.trim();
+    if (!rollNo) return toast('Find a student first.', 'error');
+    if (!amt || Number(amt) <= 0) return toast('Enter valid payment amount.', 'error');
+    const receiptInput = document.getElementById('fineReceiptFile');
+    if (!receiptInput || !receiptInput.files || !receiptInput.files[0]) return toast('Please upload the payment receipt first.', 'error');
+    const receiptPayload = await fileToPayload('fineReceiptFile');
+    if (receiptPayload === null) return;
+    const data = await callApi('apiPayFine', Object.assign({
+      rollNo,
+      amount: amt,
+      remarks: document.getElementById('fineAdjustmentRemarks').value
+    }, receiptPayload), true);
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('fineReceiptFile').value = '';
+      document.getElementById('fineAdjustmentRemarks').value = '';
+      fetchStudent('return');
+      loadPendingFines();
+    } else toast(data ? data.message : 'Payment failed.', 'error');
+  }
+
+  async function withdrawFine() {
+    const amt = document.getElementById('finePayAmount').value;
+    const rollNo = document.getElementById('returnRollNo').value.trim();
+    const remarks = document.getElementById('fineAdjustmentRemarks').value.trim();
+    if (!rollNo) return toast('Find a student first.', 'error');
+    if (!amt || Number(amt) <= 0) return toast('Enter valid withdrawal amount.', 'error');
+    if (!remarks) return toast('Please enter a reason for withdrawing/waiving the fine.', 'error');
+    if (!confirm(`Withdraw/waive PKR ${amt} fine for ${rollNo}?`)) return;
+    const receiptPayload = await fileToPayload('fineReceiptFile');
+    if (receiptPayload === null) return;
+    const data = await callApi('apiAdjustFine', Object.assign({
+      rollNo,
+      amount: amt,
+      adjustmentType: 'WITHDRAW',
+      remarks
+    }, receiptPayload), true);
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('fineReceiptFile').value = '';
+      document.getElementById('fineAdjustmentRemarks').value = '';
+      fetchStudent('return');
+      loadPendingFines();
+    } else toast(data ? data.message : 'Fine withdrawal failed.', 'error');
+  }
+
+  async function loadActiveIssues() {
+    const tbody = document.getElementById('activeIssuesTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+    const data = await callApi('apiGetActiveIssues', {}, true);
+    if (!data || !data.success) return tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Failed to load.</td></tr>';
+    currentActiveIssues = data.activeIssues || [];
+    renderActiveIssuesTable();
+  }
+
+  function renderActiveIssuesTable() {
+    const tbody = document.getElementById('activeIssuesTableBody');
+    const search = (document.getElementById('activeIssueSearch')?.value || '').toLowerCase();
+    const rows = currentActiveIssues.filter(i => !search || [i.rollNo, i.studentName, i.itemName].join(' ').toLowerCase().includes(search));
+    if (!rows.length) return tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:green;font-weight:bold;">No active issues.</td></tr>';
+    tbody.innerHTML = rows.map(item => `<tr class="${item.isOverdue ? 'row-overdue' : ''}">
+      <td><b>${escapeHtml(item.rollNo)}</b></td><td>${escapeHtml(item.studentName)}</td><td>${escapeHtml(item.qty)}x ${escapeHtml(item.itemName)}</td><td>${escapeHtml(item.issueDate)}</td><td>${escapeHtml(item.dueDate)}</td>
+      <td>${item.isOverdue ? `<span class="badge badge-open">Overdue ${item.daysLate}d</span>` : '<span class="badge badge-closed">On Time</span>'}</td>
+    </tr>`).join('');
+  }
+
+  async function fetchStudentHistory() {
+    const rollNo = document.getElementById('historyRollNo').value.trim();
+    if (!rollNo) return toast('Enter roll number.', 'error');
+    const data = await callApi('apiGetStudentHistory', { rollNo }, true);
+    if (!data || !data.success) return toast(data ? data.message : 'History failed.', 'error');
+
+    const tBody = document.getElementById('historyTransTableBody');
+    const fBody = document.getElementById('historyFinesTableBody');
+    tBody.innerHTML = data.transactions.length ? data.transactions.map(t => `<tr><td>${escapeHtml(t.item)}</td><td>${escapeHtml(t.qty)}</td><td>${escapeHtml(t.originalQty)}</td><td>${escapeHtml(t.issueDate)}</td><td>${escapeHtml(t.dueDate)}</td><td>${escapeHtml(t.returnDate)}</td><td>${escapeHtml(t.condition)}</td><td>${t.status?.toUpperCase() === 'OPEN' ? '<span class="badge badge-open">OPEN</span>' : '<span class="badge badge-closed">CLOSED</span>'}</td></tr>`).join('') : '<tr><td colspan="8" style="text-align:center;">No borrowing history found.</td></tr>';
+    fBody.innerHTML = data.fines.length ? data.fines.map(f => `<tr><td>${escapeHtml(f.date)}</td><td>${escapeHtml(f.item)}</td><td>${escapeHtml(f.desc)}</td><td>PKR ${escapeHtml(f.amount)}</td><td>${escapeHtml(f.status)}</td><td>${escapeHtml(f.remarks || '')}</td><td>${f.receiptUrl ? `<a href="${escapeHtml(f.receiptUrl)}" target="_blank">View</a>` : '-'}</td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center;">No fines found.</td></tr>';
+  }
+
+  async function loadPendingFines() {
+    const tbody = document.getElementById('pendingFinesTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
+    const data = await callApi('apiGetPendingFines', {}, true);
+    if (!data || !data.success || !data.debtors.length) return tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:green;font-weight:bold;">All students are clear.</td></tr>';
+    tbody.innerHTML = data.debtors.map(d => `<tr><td><b>${escapeHtml(d.rollNo)}</b></td><td>${escapeHtml(d.name)}</td><td style="color:var(--danger);font-weight:bold;">PKR ${escapeHtml(d.fines)}</td><td><button class="btn btn-primary btn-small" onclick="goToPayFine('${escapeJs(d.rollNo)}')">Settle</button><button class="btn btn-warning btn-small" onclick="goToWithdrawFine('${escapeJs(d.rollNo)}')">Withdraw</button></td></tr>`).join('');
+  }
+
+  function goToPayFine(rollNo) {
+    switchTab('return');
+    document.getElementById('returnRollNo').value = rollNo;
+    fetchStudent('return');
+  }
+
+  function goToWithdrawFine(rollNo) {
+    switchTab('return');
+    document.getElementById('returnRollNo').value = rollNo;
+    fetchStudent('return');
+    setTimeout(() => {
+      const remarks = document.getElementById('fineAdjustmentRemarks');
+      if (remarks) remarks.placeholder = 'Enter withdrawal/waiver reason (required)';
+    }, 400);
+  }
+
+  async function fetchStudentDashboard() {
+    const qrData = document.getElementById('studentPortalRollNo').value;
+    if (!qrData) return toast('Please scan smart card.', 'error');
+    document.getElementById('studentPortalInfo').innerHTML = 'Loading your data securely...';
+    const data = await callApi('apiGetStudentDashboard', { qrData });
+    if (!data || !data.success) {
+      document.getElementById('studentPortalInfo').innerHTML = '<span style="color:var(--danger);">Student not found. Contact sports office.</span>';
+      return;
     }
+    const fineColor = Number(data.fines) > 0 ? 'var(--danger)' : 'var(--success)';
+    document.getElementById('studentPortalInfo').innerHTML = `Welcome, ${escapeHtml(data.name)} (${escapeHtml(data.rollNo)})<br><span style="color:${fineColor};font-size:16px;">${Number(data.fines) > 0 ? 'Unpaid Fines: PKR ' + escapeHtml(data.fines) : 'No Outstanding Fines'}</span>`;
+    const tbody = document.getElementById('studentPortalItemsTable');
+    document.getElementById('studentPortalItemsSection').style.display = 'block';
+    tbody.innerHTML = data.openItems.length ? data.openItems.map(item => `<tr><td><b>${escapeHtml(item.itemName)}</b></td><td>${escapeHtml(item.qty)}</td><td>${escapeHtml(item.dueDate)}</td><td>${item.isOverdue ? '<span class="badge badge-open">Overdue</span>' : '<span class="badge badge-closed">On Time</span>'}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;">No items currently issued.</td></tr>';
+  }
 
-    async function checkLogin() {
-        const u = document.getElementById('adminUser').value;
-        const p = document.getElementById('adminPass').value;
-        document.getElementById('adminUser').value = "Logging in...";
-        
-        let data = await callApi('adminLogin', { user: u, pass: p });
-        if(data && data.success) {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.querySelectorAll('.admin-only').forEach(el => {
-                if(el.classList.contains('btn-print')) el.style.display = 'inline-block';
-                else el.style.display = 'block';
-            });
-            document.querySelectorAll('.public-only').forEach(el => el.style.display = 'none');
-            document.getElementById('adminUser').value = '';
-            document.getElementById('adminPass').value = '';
-            loadDashboard();
-        } else {
-            alert(data ? data.message : "Error logging in");
-            document.getElementById('adminUser').value = u;
-        }
+  function toggleRestockType() {
+    const type = document.getElementById('restockType').value;
+    document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
+    document.getElementById('newItemName').style.display = type === 'new' ? 'block' : 'none';
+  }
+
+  async function submitRestock() {
+    const isNew = document.getElementById('restockType').value === 'new';
+    const name = isNew ? document.getElementById('newItemName').value.trim() : document.getElementById('restockItemSelect').value.trim();
+    const qty = document.getElementById('restockQty').value;
+    if (!name || !qty) return toast('Fill item name and quantity.', 'error');
+    const data = await callApi('restockItem', {
+      name, qty, isNew,
+      category: document.getElementById('newItemCategory').value,
+      minStock: document.getElementById('newItemMinStock').value,
+      unitValue: document.getElementById('newItemValue').value,
+      supplier: document.getElementById('newItemSupplier').value,
+      purchaseDate: document.getElementById('newItemPurchaseDate').value,
+      photoUrl: document.getElementById('newItemPhoto').value,
+      notes: document.getElementById('newItemNotes').value
+    }, true);
+    if (data && data.success) {
+      toast(data.message, 'success');
+      ['restockItemSelect','newItemName','restockQty','newItemCategory','newItemMinStock','newItemValue','newItemSupplier','newItemPurchaseDate','newItemPhoto','newItemNotes'].forEach(id => document.getElementById(id).value = '');
+      loadDashboard();
+    } else toast(data ? data.message : 'Inventory update failed.', 'error');
+  }
+
+  function loadItemForEdit() {
+    const val = document.getElementById('editItemSelect').value;
+    const item = currentInventoryData.find(i => i.name === val || i.id === val);
+    if (!item) return;
+    fillEditForm(item);
+  }
+
+  function editItemById(id) {
+    switchTab('inventoryAdmin');
+    const item = currentInventoryData.find(i => i.id === id);
+    if (item) fillEditForm(item);
+  }
+
+  function fillEditForm(item) {
+    document.getElementById('editItemSelect').value = item.name;
+    document.getElementById('editItemId').value = item.id;
+    document.getElementById('editName').value = item.name;
+    document.getElementById('editCategory').value = item.category;
+    document.getElementById('editMinStock').value = item.minStock || '';
+    document.getElementById('editUnitValue').value = item.unitValue || '';
+    document.getElementById('editSupplier').value = item.supplier || '';
+    document.getElementById('editPhotoUrl').value = item.photoUrl || '';
+    document.getElementById('editNotes').value = item.notes || '';
+  }
+
+  async function saveItemEdits() {
+    const itemId = document.getElementById('editItemId').value;
+    if (!itemId) return toast('Select an item first.', 'error');
+    const data = await callApi('apiUpdateItem', {
+      itemId,
+      name: document.getElementById('editName').value,
+      category: document.getElementById('editCategory').value,
+      minStock: document.getElementById('editMinStock').value,
+      unitValue: document.getElementById('editUnitValue').value,
+      supplier: document.getElementById('editSupplier').value,
+      photoUrl: document.getElementById('editPhotoUrl').value,
+      notes: document.getElementById('editNotes').value,
+      active: 'true'
+    }, true);
+    if (data && data.success) { toast(data.message, 'success'); loadDashboard(); }
+    else toast(data ? data.message : 'Update failed.', 'error');
+  }
+
+  async function archiveSelectedItem() {
+    const itemId = document.getElementById('editItemId').value;
+    if (!itemId) return toast('Select an item first.', 'error');
+    if (!confirm('Archive this item? It will be hidden from public issue lists.')) return;
+    const data = await callApi('apiArchiveItem', { itemId }, true);
+    if (data && data.success) { toast(data.message, 'success'); loadDashboard(); }
+    else toast(data ? data.message : 'Archive failed.', 'error');
+  }
+
+  async function submitOfficeLoss() {
+    const itemName = document.getElementById('officeLossItemSelect').value.trim();
+    const qty = parseInt(document.getElementById('officeLossQty').value, 10);
+    const remarks = document.getElementById('officeLossRemarks').value;
+    if (!itemName || qty < 1) return toast('Specify item and quantity.', 'error');
+    const selected = currentInventoryData.find(i => i.name === itemName);
+    if (!selected) return toast('Select a valid item.', 'error');
+    if (qty > selected.available) return toast(`Only ${selected.available} available.`, 'error');
+    if (!confirm(`Mark ${qty}x ${itemName} as office loss?`)) return;
+    const data = await callApi('apiMarkOfficeLoss', { itemName, qty, remarks }, true);
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('officeLossItemSelect').value = '';
+      document.getElementById('officeLossQty').value = '1';
+      document.getElementById('officeLossRemarks').value = '';
+      loadDashboard();
+    } else toast(data ? data.message : 'Office loss failed.', 'error');
+  }
+
+  async function generateReport(defaultType, autoPrint = false) {
+    if (defaultType && document.getElementById('reportType')) document.getElementById('reportType').value = defaultType;
+    const type = document.getElementById('reportType')?.value || defaultType || 'inventory';
+    const data = await callApi('apiGetReportData', { type }, true);
+    if (!data || !data.success) return toast(data ? data.message : 'Report failed.', 'error');
+    currentReportRows = data.rows || [];
+    currentReportTitle = data.title || 'Report';
+    renderReportPreview(data.type, currentReportTitle, currentReportRows);
+    if (autoPrint) printCurrentReport();
+  }
+
+  function renderReportPreview(type, title, rows) {
+    const box = document.getElementById('reportPreview');
+    if (!box) return;
+    if (!rows.length) { box.innerHTML = `<h4>${escapeHtml(title)}</h4><p>No records found.</p>`; return; }
+    const keys = Object.keys(rows[0]).filter(k => !['row', 'photoUrl', 'notes'].includes(k));
+    box.innerHTML = `<div class="section-title"><h4>${escapeHtml(title)}</h4><button class="btn btn-print" onclick="printCurrentReport()">Print</button></div><table><thead><tr>${keys.map(k => `<th>${escapeHtml(k)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${keys.map(k => `<td>${escapeHtml(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
+  function printCurrentReport() {
+    if (!currentReportRows.length) return toast('Generate a report first.', 'error');
+    const keys = Object.keys(currentReportRows[0]).filter(k => !['row', 'photoUrl', 'notes'].includes(k));
+    const date = new Date().toLocaleDateString('en-GB');
+    const html = `<!DOCTYPE html><html><head><title>${escapeHtml(currentReportTitle)}</title><style>body{font-family:Segoe UI,Arial;padding:20px;color:#000}.header{text-align:center;margin-bottom:15px}.header img{height:50px}.date{text-align:right;font-weight:bold;margin-bottom:10px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #000;padding:5px;text-align:left}th{background:#eee}.footer{margin-top:45px;text-align:right}.sig{display:inline-block;width:220px;text-align:center;border-top:1px solid #000;padding-top:5px}@media print{@page{size:A4 portrait;margin:12mm}}</style></head><body><div class="header"><img src="https://www.nu.edu.pk/Content/images/Logo.png"><h3>NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h3><div>Multan Campus</div><h2>${escapeHtml(currentReportTitle)}</h2></div><div class="date">Date: ${date}</div><table><thead><tr>${keys.map(k => `<th>${escapeHtml(k)}</th>`).join('')}</tr></thead><tbody>${currentReportRows.map(r => `<tr>${keys.map(k => `<td>${escapeHtml(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table><div class="footer"><div class="sig">Signature of Sports Officer</div></div></body></html>`;
+    const win = window.open('', '', 'width=900,height=900');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 600);
+  }
+
+  function exportCurrentReportCsv() {
+    if (!currentReportRows.length) return toast('Generate a report first.', 'error');
+    const keys = Object.keys(currentReportRows[0]).filter(k => !['row'].includes(k));
+    const csv = [keys.join(',')].concat(currentReportRows.map(row => keys.map(k => '"' + String(row[k] ?? '').replace(/"/g, '""') + '"').join(','))).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = currentReportTitle.replace(/\s+/g, '_') + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function loadSettings() {
+    const data = await callApi('apiGetSettings', {}, true);
+    if (!data || !data.success) return;
+    const s = data.settings;
+    systemSettings = Object.assign(systemSettings, s);
+    document.getElementById('settingBorrowHours').value = s.borrowHours;
+    document.getElementById('settingDefaultDueTime').value = s.defaultDueTime || '16:40';
+    document.getElementById('settingLateFine').value = s.lateFine;
+    document.getElementById('settingAutoRegister').value = s.autoRegister;
+    document.getElementById('settingReminderHours').value = s.reminderHours;
+    document.getElementById('settingLowStockDefault').value = s.lowStockDefault;
+    document.getElementById('settingAdminEmail').value = s.adminEmail;
+    document.getElementById('settingCampusName').value = s.campusName;
+    document.getElementById('settingUniversityName').value = s.universityName;
+  }
+
+  async function saveSettings() {
+    const data = await callApi('apiUpdateSettings', {
+      borrowHours: document.getElementById('settingBorrowHours').value,
+      defaultDueTime: document.getElementById('settingDefaultDueTime').value || '16:40',
+      lateFine: document.getElementById('settingLateFine').value,
+      autoRegister: document.getElementById('settingAutoRegister').value,
+      reminderHours: document.getElementById('settingReminderHours').value,
+      lowStockDefault: document.getElementById('settingLowStockDefault').value,
+      adminEmail: document.getElementById('settingAdminEmail').value,
+      campusName: document.getElementById('settingCampusName').value,
+      universityName: document.getElementById('settingUniversityName').value
+    }, true);
+    if (data && data.success) {
+      systemSettings = Object.assign(systemSettings, data.settings || {});
+      updateDefaultDuePreview();
+      toast(data.message, 'success');
     }
-
-    function logout() {
-        document.getElementById('login-overlay').style.display = 'flex';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.public-only').forEach(el => el.style.display = 'none');
-        
-        // Reset inputs to protect privacy
-        document.getElementById('studentPortalRollNo').value = "";
-        document.getElementById('studentPortalInfo').innerHTML = "";
-        document.getElementById('studentPortalItemsSection').style.display = "none";
-        
-        switchTab('dashboard'); 
-    }
-
-    function enterViewOnly() {
-        document.getElementById('login-overlay').style.display = 'none';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.public-only').forEach(el => el.style.display = 'block');
-        switchTab('dashboard');
-    }
-
-    let html5QrcodeScanner; let currentScanMode = '';
-    function startScanner(mode) {
-        currentScanMode = mode;
-        document.getElementById('scanner-modal').style.display = 'flex';
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render((text) => { 
-            stopScanner(); 
-            document.getElementById(currentScanMode + 'RollNo').value = text; 
-            if(currentScanMode === 'studentPortal') {
-                fetchStudentDashboard();
-            } else if (currentScanMode === 'history') {
-                fetchStudentHistory();
-            } else {
-                fetchStudent(currentScanMode); 
-            }
-        }, (err) => {});
-    }
-    function stopScanner() { if(html5QrcodeScanner) html5QrcodeScanner.clear(); document.getElementById('scanner-modal').style.display = 'none'; }
-
-    function renderCategoryFilters(items) {
-        let categories = new Set();
-        items.forEach(i => { if(i.category) categories.add(i.category); });
-        
-        let container = document.getElementById('categoryFilters');
-        container.innerHTML = `<button class="filter-btn ${currentCategoryFilter === 'All' ? 'active-filter' : ''}" onclick="applyFilter('All')">All</button>`;
-        
-        categories.forEach(cat => {
-            let activeClass = currentCategoryFilter === cat ? 'active-filter' : '';
-            container.innerHTML += `<button class="filter-btn ${activeClass}" onclick="applyFilter('${cat}')">${cat}</button>`;
-        });
-    }
-
-    function applyFilter(category) {
-        currentCategoryFilter = category;
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.toggle('active-filter', btn.innerText === category);
-        });
-        renderInventoryTable();
-    }
-
-    function renderInventoryTable() {
-        let tbody = document.getElementById('inventoryTableBody');
-        tbody.innerHTML = '';
-        currentInventoryData.forEach(item => {
-            if(item.available > 0 && (currentCategoryFilter === 'All' || item.category === currentCategoryFilter)) {
-                tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.category}</td><td><b>${item.available}</b></td><td>${item.total}</td></tr>`;
-            }
-        });
-    }
-
-    async function loadDashboard() {
-        let data = await callApi('apiGetInventory');
-        if(!data) return;
-        
-        currentInventoryData = data.items;
-        renderCategoryFilters(currentInventoryData); 
-        renderInventoryTable(); 
-        
-        let s1 = document.getElementById('issueItemOptions'); 
-        let s2 = document.getElementById('restockItemOptions'); 
-        let s3 = document.getElementById('officeLossItemOptions'); 
-        
-        s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
-        
-        data.items.forEach(item => {
-            if(item.available > 0) s1.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
-            s2.innerHTML += `<option value="${item.name}">`;
-            s3.innerHTML += `<option value="${item.name}">Available: ${item.available}</option>`;
-        });
-    }
-
-    async function loadActiveIssues() {
-        let tbody = document.getElementById('activeIssuesTableBody');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Fetching list... please wait.</td></tr>';
-        
-        let data = await callApi('apiGetActiveIssues');
-        if(!data || !data.success) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data. Make sure backend is updated and deployed!</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = '';
-        if(data.activeIssues.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:green; padding: 20px;"><b>🎉 No items are currently issued to anyone.</b></td></tr>';
-            return;
-        }
-        
-        data.activeIssues.forEach(item => {
-            let statusHtml = item.isOverdue 
-                ? `<b style="color:#d9534f;">Overdue (${item.daysLate} Days)</b>` 
-                : `<b style="color:#28a745;">Issued (On Time)</b>`;
-            
-            let rowClass = item.isOverdue ? "row-overdue" : "";
-            let dateStyle = item.isOverdue ? "color:#d9534f; font-weight:bold;" : "";
-
-            tbody.innerHTML += `<tr class="${rowClass}">
-                <td><b>${item.rollNo}</b></td>
-                <td>${item.studentName}</td>
-                <td>${item.qty}x ${item.itemName}</td>
-                <td style="${dateStyle}">${item.dueDate}</td>
-                <td>${statusHtml}</td>
-            </tr>`;
-        });
-    }
-
-    // ✅ PHASE 2: Fetch Student History 
-    async function fetchStudentHistory() {
-        let rollNo = document.getElementById('historyRollNo').value;
-        if(!rollNo) return alert("Please enter or scan a Roll No.");
-        
-        document.querySelector("#history .btn-success").innerText = "Searching...";
-        let data = await callApi('apiGetStudentHistory', { rollNo: rollNo });
-        document.querySelector("#history .btn-success").innerText = "Search History";
-        
-        if(!data || !data.success) return alert("Failed to fetch history.");
-        
-        let tBody = document.getElementById('historyTransTableBody');
-        tBody.innerHTML = '';
-        if(data.transactions.length === 0) {
-            tBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No borrowing history found.</td></tr>';
-        } else {
-            data.transactions.forEach(t => {
-                let badge = t.status.toUpperCase() === 'OPEN' ? '<span class="badge badge-open">OPEN</span>' : '<span class="badge badge-closed">CLOSED</span>';
-                tBody.innerHTML += `<tr><td>${t.item}</td><td>${t.qty}</td><td>${t.issueDate}</td><td>${t.returnDate}</td><td>${t.condition}</td><td>${badge}</td></tr>`;
-            });
-        }
-
-        let fBody = document.getElementById('historyFinesTableBody');
-        fBody.innerHTML = '';
-        if(data.fines.length === 0) {
-            fBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No fines or damages recorded.</td></tr>';
-        } else {
-            data.fines.forEach(f => {
-                let amtColor = f.status.toUpperCase() === 'PAID' ? 'color:green;' : 'color:#d9534f; font-weight:bold;';
-                fBody.innerHTML += `<tr><td>${new Date(f.date).toLocaleDateString()}</td><td>${f.item}</td><td>${f.desc}</td><td style="${amtColor}">${f.amount}</td><td>${f.status}</td></tr>`;
-            });
-        }
-    }
-
-    // ✅ PHASE 2: Load Pending Fines
-    async function loadPendingFines() {
-        let tbody = document.getElementById('pendingFinesTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
-        
-        let data = await callApi('apiGetPendingFines');
-        tbody.innerHTML = '';
-        
-        if(!data || !data.success || data.debtors.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:green; font-weight:bold;">🎉 All students are clear! No outstanding fines.</td></tr>';
-            return;
-        }
-
-        data.debtors.forEach(d => {
-            tbody.innerHTML += `<tr>
-                <td><b>${d.rollNo}</b></td>
-                <td>${d.name}</td>
-                <td style="color:#d9534f; font-weight:bold;">PKR ${d.fines}</td>
-                <td><button class="btn btn-primary" style="margin:0; padding: 5px 10px;" onclick="goToPayFine('${d.rollNo}')">Settle</button></td>
-            </tr>`;
-        });
-    }
-
-    // ✅ PHASE 2: Link Fines tab to Return/Pay tab
-    function goToPayFine(rollNo) {
-        switchTab('return');
-        document.getElementById('returnRollNo').value = rollNo;
-        fetchStudent('return');
-    }
-
-    // ✅ PHASE 2: Student Self-Service Dashboard
-    async function fetchStudentDashboard() {
-        let qrData = document.getElementById('studentPortalRollNo').value;
-        if(!qrData) return alert("Please scan your Smart Card.");
-        
-        document.getElementById('studentPortalInfo').innerHTML = "Loading your data securely...";
-        
-        let data = await callApi('apiGetStudentDashboard', { qrData: qrData });
-        if(!data || !data.success) {
-            document.getElementById('studentPortalInfo').innerHTML = "<span style='color:red;'>Student not found. Please contact the sports office.</span>";
-            return;
-        }
-
-        let fineColor = data.fines > 0 ? "#d9534f" : "#28a745";
-        let fineText = data.fines > 0 ? `Unpaid Fines: PKR ${data.fines}` : `No Outstanding Fines`;
-        
-        document.getElementById('studentPortalInfo').innerHTML = `
-            Welcome, ${data.name} (${data.rollNo})<br>
-            <span style="color: ${fineColor}; font-size: 16px; display:inline-block; margin-top:5px;">${fineText}</span>
-        `;
-
-        let tbody = document.getElementById('studentPortalItemsTable');
-        tbody.innerHTML = '';
-        document.getElementById('studentPortalItemsSection').style.display = 'block';
-
-        if(data.openItems.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">You have no items currently issued.</td></tr>`;
-        } else {
-            data.openItems.forEach(item => {
-                tbody.innerHTML += `<tr>
-                    <td><b>${item.itemName}</b></td>
-                    <td>${item.qty}</td>
-                    <td>${item.dueDate}</td>
-                </tr>`;
-            });
-        }
-    }
-
-    function generateReport() {
-        if(currentInventoryData.length === 0) {
-            alert("Please wait for the inventory to load first.");
-            return;
-        }
-
-        let today = new Date();
-        let formattedDate = today.toLocaleDateString('en-GB');
-
-        let tableRows = '';
-        currentInventoryData.forEach((item, index) => {
-            tableRows += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td style="text-align: left; padding-left: 5px;">${item.name}</td>
-                    <td>${item.category}</td>
-                    <td>${item.total}</td>
-                    <td>${item.available}</td>
-                    <td>${item.damaged}</td>
-                    <td>${item.consumed}</td>
-                    <td>${item.lost}</td>
-                    <td>${item.lastRestock}</td>
-                </tr>
-            `;
-        });
-
-        let printWin = window.open('', '', 'width=800,height=900');
-        printWin.document.write(`
-            <html>
-            <head>
-                <title>Sports Office Inventory Report</title>
-                <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; margin: 0; padding: 20px; background: white;}
-                    .header { text-align: center; margin-bottom: 15px; }
-                    .header img { height: 50px; margin-bottom: 5px; }
-                    .header h1 { font-size: 14px; margin: 0; text-transform: uppercase; }
-                    .header h2 { font-size: 12px; margin: 3px 0 0 0; font-weight: normal; }
-                    .header h3 { font-size: 16px; margin: 15px 0 10px 0; text-decoration: underline; }
-                    
-                    .date-container { text-align: right; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
-                    
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 11px; }
-                    th, td { border: 1px solid #000; padding: 6px 3px; text-align: center; word-wrap: break-word; }
-                    th { background-color: #f2f2f2; font-weight: bold; }
-                    
-                    .footer { display: flex; justify-content: flex-end; margin-top: 40px; }
-                    .signature-box { text-align: center; width: 220px; font-size: 12px; }
-                    .sig-line { border-top: 1px solid #000; margin-bottom: 5px; }
-                    
-                    @media print {
-                        @page { size: A4 portrait; margin: 12mm; }
-                        body { padding: 0; }
-                        tr { page-break-inside: avoid; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <img src="https://www.nu.edu.pk/Content/images/Logo.png" alt="FAST Logo">
-                    <h1>NATIONAL UNIVERSITY OF COMPUTER AND EMERGING SCIENCES</h1>
-                    <h2>Multan Campus</h2>
-                    <h3>Sports Office Inventory Report</h3>
-                </div>
-                
-                <div class="date-container">
-                    Date: ${formattedDate}
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 4%;">Sr</th>
-                            <th style="width: 22%; text-align: left; padding-left: 5px;">Item Name</th>
-                            <th style="width: 14%;">Category</th>
-                            <th style="width: 9%;">Total<br>Purchased</th>
-                            <th style="width: 9%;">Currently<br>Available</th>
-                            <th style="width: 9%;">Total<br>Damaged</th>
-                            <th style="width: 9%;">Total<br>Consumed</th>
-                            <th style="width: 9%;">Total<br>Lost</th>
-                            <th style="width: 15%;">Last Restock<br>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                    </tbody>
-                </table>
-
-                <div class="footer">
-                    <div class="signature-box">
-                        <div class="sig-line"></div>
-                        <strong>Signature of Sports Officer</strong>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `);
-        
-        printWin.document.close();
-        setTimeout(() => { printWin.print(); }, 800);
-    }
-
-    async function fetchStudent(mode) {
-        let inputValue = document.getElementById(mode + 'RollNo').value;
-        if(!inputValue) return alert("Enter Roll No or Scan QR");
-        
-        document.querySelector(`#${mode} .btn-success`).innerText = "Searching...";
-        
-        let data = await callApi('apiGetStudent', { qrData: inputValue });
-        
-        document.querySelector(`#${mode} .btn-success`).innerText = mode === 'issue' ? "Find Student" : "Find Open Items";
-        if(!data) return;
-
-        document.getElementById(mode + 'RollNo').value = data.rollNo;
-
-        let autoRegBadge = data.message === "Auto-registered!" ? " <span style='color:green;'>(New Registration)</span>" : "";
-        document.getElementById(mode + 'StudentInfo').innerHTML = `Name: ${data.name} | Fines: PKR ${data.fines}${autoRegBadge}`;
-        
-        if(mode === 'return') {
-            if(data.fines > 0) {
-                document.getElementById('finePaymentContainer').style.display = 'block';
-                document.getElementById('finePayAmount').value = data.fines;
-            } else {
-                document.getElementById('finePaymentContainer').style.display = 'none';
-            }
-            fetchOpenTransactions(data.rollNo);
-        }
-    }
-
-    function addToCart() {
-        let itemName = document.getElementById('issueItemSelect').value;
-        let qty = parseInt(document.getElementById('issueQty').value);
-
-        let selectedItem = currentInventoryData.find(i => i.name === itemName);
-        
-        if (!itemName) return alert("Please type or select an item from the list.");
-        if (!selectedItem || selectedItem.available <= 0) return alert("Please select a valid item that is currently in stock.");
-        if (qty > selectedItem.available) return alert(`Not enough stock! Only ${selectedItem.available}x ${itemName} available.`);
-
-        cart.push({ itemName: itemName, qty: qty });
-        updateCartUI();
-        
-        document.getElementById('issueItemSelect').value = '';
-        document.getElementById('issueQty').value = '1';
-    }
-
-    function removeFromCart(index) { cart.splice(index, 1); updateCartUI(); }
-
-    function updateCartUI() {
-        let list = document.getElementById('cartList');
-        list.innerHTML = '';
-        cart.forEach((item, index) => {
-            list.innerHTML += `<li style="background: rgba(0,0,0,0.05); margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
-                <span><b>${item.qty}x</b> ${item.itemName}</span>
-                <span style="cursor: pointer; color: #d9534f; font-size: 18px;" onclick="removeFromCart(${index})" title="Remove">❌</span>
-            </li>`;
-        });
-        document.getElementById('checkoutBtn').style.display = cart.length > 0 ? 'block' : 'none';
-    }
-
-    async function checkout() {
-        document.getElementById('checkoutBtn').innerText = "Processing...";
-        
-        let currentInput = document.getElementById('issueRollNo').value;
-        let customDate = document.getElementById('customDueDate').value; 
-        
-        let data = await callApi('apiIssueItems', { qrData: currentInput, cart: JSON.stringify(cart), customDueDate: customDate });
-        
-        if(data && data.success) {
-            alert("Issued Successfully!");
-            cart = []; updateCartUI();
-            document.getElementById('issueRollNo').value = '';
-            document.getElementById('issueStudentInfo').innerHTML = '';
-            document.getElementById('customDueDate').value = ''; 
-            loadDashboard();
-        } else {
-            alert(data ? data.message : "Error issuing items.");
-        }
-        document.getElementById('checkoutBtn').innerText = "Checkout Now";
-    }
-
-    async function fetchOpenTransactions(rollNo) {
-        let data = await callApi('apiGetOpenTransactions', { rollNo: rollNo });
-        let container = document.getElementById('returnItemsContainer'); container.innerHTML = '';
-        if(!data || data.items.length === 0) return container.innerHTML = "<p>No open items.</p>";
-        
-        data.items.forEach(item => {
-            container.innerHTML += `
-            <div class="return-item" data-id="${item.transactionId}" data-itemid="${item.itemId}">
-                <p style="margin-bottom: 5px;"><b>${item.itemName}</b> (Due: ${item.dueDate})</p>
-                
-                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
-                    <label>Return Qty:</label>
-                    <input type="number" class="retQtyInput" value="${item.qty}" max="${item.qty}" min="0" style="width: 80px; margin: 0;">
-                    <span style="opacity: 0.6;">/ ${item.qty}</span>
-                </div>
-
-                <select class="condSelect" onchange="toggleFine(this)">
-                    <option value="Good">Good</option>
-                    <option value="Damaged">Damaged</option>
-                    <option value="Consumed">Consumed (e.g. broken ball)</option>
-                    <option value="Lost">Lost by Student</option>
-                </select>
-                <input type="number" class="fineInput" placeholder="Fine PKR" style="display:none; width:100px;">
-                <hr style="opacity:0.2;">
-            </div>`;
-        });
-        document.getElementById('processReturnBtn').style.display = 'block';
-    }
-
-    function toggleFine(sel) {
-        let requiresFine = (sel.value === "Damaged" || sel.value === "Lost");
-        sel.nextElementSibling.style.display = requiresFine ? "inline-block" : "none";
-        sel.nextElementSibling.value = requiresFine ? "" : "0";
-    }
-
-    async function processReturns() {
-        let returnData = [];
-        document.querySelectorAll('.return-item').forEach(div => {
-            let q = parseInt(div.querySelector('.retQtyInput').value);
-            if(q > 0) {
-                returnData.push({ 
-                    transactionId: div.dataset.id, 
-                    itemId: div.dataset.itemid, 
-                    qty: q, 
-                    condition: div.querySelector('.condSelect').value, 
-                    fineAmount: div.querySelector('.fineInput').value || 0 
-                });
-            }
-        });
-        if(returnData.length === 0) return alert("Adjust the quantities to return at least 1 item.");
-
-        document.getElementById('processReturnBtn').innerText = "Processing...";
-        let data = await callApi('apiProcessReturns', { rollNo: document.getElementById('returnRollNo').value, returns: JSON.stringify(returnData) });
-        alert(data.message);
-        document.getElementById('returnItemsContainer').innerHTML = '';
-        document.getElementById('processReturnBtn').style.display = 'none';
-        document.getElementById('processReturnBtn').innerText = "Process Returns";
-        fetchStudent('return');
-    }
-
-    async function payFine() {
-        let amt = document.getElementById('finePayAmount').value;
-        if(!amt || amt <= 0) return alert("Please enter a valid amount to pay.");
-        let btn = document.querySelector('#finePaymentContainer .btn-danger');
-        btn.innerText = "...";
-        
-        let data = await callApi('apiPayFine', { rollNo: document.getElementById('returnRollNo').value, amount: amt });
-        alert(data.message);
-        btn.innerText = "Pay";
-        fetchStudent('return'); 
-    }
-
-    function toggleRestockType() {
-        let type = document.getElementById('restockType').value;
-        document.getElementById('restockItemSelect').style.display = type === 'existing' ? 'block' : 'none';
-        document.getElementById('newItemName').style.display = type === 'new' ? 'block' : 'none';
-    }
-
-    async function submitRestock() {
-        let isNew = document.getElementById('restockType').value === 'new';
-        let name = isNew ? document.getElementById('newItemName').value : document.getElementById('restockItemSelect').value;
-        let qty = document.getElementById('restockQty').value;
-
-        if (!name || !qty) return alert("Please fill out both the item name and quantity.");
-
-        if (!isNew) {
-            let exists = currentInventoryData.some(i => i.name === name);
-            if (!exists) return alert("Please select a valid existing item from the list, or choose 'Add New Item' from the dropdown above.");
-        }
-
-        let data = await callApi('restockItem', { name: name, qty: qty, isNew: isNew });
-        alert(data.message); 
-        
-        document.getElementById('restockItemSelect').value = '';
-        document.getElementById('newItemName').value = '';
-        document.getElementById('restockQty').value = '';
-        loadDashboard();
-    }
-
-    async function submitOfficeLoss() {
-        let name = document.getElementById('officeLossItemSelect').value;
-        let qty = parseInt(document.getElementById('officeLossQty').value);
-        
-        if(!name || qty < 1) return alert("Please specify the item and quantity lost.");
-        
-        let selectedItem = currentInventoryData.find(i => i.name === name);
-        if (!selectedItem) return alert("Please select a valid item from the list.");
-        if (qty > selectedItem.available) return alert(`You cannot mark ${qty}x as lost. Only ${selectedItem.available}x available in stock.`);
-
-        if(confirm(`Are you sure you want to mark ${qty}x ${name} as lost from the office? This cannot be undone.`)) {
-            let btn = event.target;
-            btn.innerText = "Processing...";
-            let data = await callApi('apiMarkOfficeLoss', { itemName: name, qty: qty });
-            alert(data.message);
-            
-            btn.innerText = "Mark as Lost";
-            document.getElementById('officeLossItemSelect').value = '';
-            document.getElementById('officeLossQty').value = "1";
-            loadDashboard(); 
-        }
-    }
+    else toast(data ? data.message : 'Settings failed.', 'error');
+  }
 </script>
 </body>
 </html>
