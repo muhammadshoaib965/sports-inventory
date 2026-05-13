@@ -246,16 +246,33 @@
     <input type="text" id="adminUser" placeholder="Username" autocomplete="username">
     <input type="password" id="adminPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') checkLogin()">
     <button class="btn btn-primary" onclick="checkLogin()">Login</button>
-    <span style="color: var(--info); font-size: 14px; text-decoration: underline; display: block; margin-top: 15px; cursor: pointer;" onclick="togglePasswordSection()">Change Password?</span>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:15px;">
+      <span style="color: var(--info); font-size: 14px; text-decoration: underline; cursor: pointer;" onclick="showAuthSection('changePasswordSection')">Change Password</span>
+      <span style="color: var(--info); font-size: 14px; text-decoration: underline; cursor: pointer;" onclick="showAuthSection('forgotPasswordSection')">Forgot Password?</span>
+    </div>
   </div>
 
   <div class="login-box" id="changePasswordSection" style="display:none;">
     <h3>Change Password</h3>
+    <p class="muted" style="margin-top:-5px;">Use this when you know your old password. No login is required.</p>
     <input type="text" id="cpUser" placeholder="Username">
     <input type="password" id="cpOldPass" placeholder="Old Password">
     <input type="password" id="cpNewPass" placeholder="New Password">
     <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
-    <button class="btn btn-danger" onclick="togglePasswordSection()">Cancel</button>
+    <button class="btn btn-danger" onclick="showAuthSection('loginFormSection')">Back to Login</button>
+  </div>
+
+  <div class="login-box" id="forgotPasswordSection" style="display:none;">
+    <h3>Forgot Password</h3>
+    <p class="muted" style="margin-top:-5px;">Enter your username or linked email. A 6-digit code will be sent to your admin email.</p>
+    <input type="text" id="fpUserOrEmail" placeholder="Username or linked email">
+    <button class="btn btn-primary" onclick="requestPasswordResetCode()">Send Verification Code</button>
+    <hr>
+    <input type="text" id="fpUsername" placeholder="Username" autocomplete="username">
+    <input type="text" id="fpCode" placeholder="6-digit verification code" maxlength="6" inputmode="numeric">
+    <input type="password" id="fpNewPass" placeholder="New Password" autocomplete="new-password">
+    <button class="btn btn-success" onclick="resetPasswordWithCode()">Reset Password</button>
+    <button class="btn btn-danger" onclick="showAuthSection('loginFormSection')">Back to Login</button>
   </div>
 </div>
 
@@ -284,6 +301,7 @@
     <div class="tab-btn admin-only" onclick="switchTab('inventoryAdmin')">📦 Inventory</div>
     <div class="tab-btn admin-only" onclick="switchTab('reports')">🧾 Reports</div>
     <div class="tab-btn admin-only" onclick="switchTab('settings')">⚙️ Settings</div>
+    <div class="tab-btn admin-only" onclick="openLoggedInPasswordChange()">🔐 Password</div>
     <div class="tab-btn admin-only logout-btn" onclick="logout()">🚪 Logout</div>
   </div>
 
@@ -689,12 +707,16 @@
     document.getElementById('darkModeToggle').innerText = isDark ? '☀️' : '🌙';
   }
 
+  function showAuthSection(sectionId) {
+    ['loginFormSection', 'changePasswordSection', 'forgotPasswordSection'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = id === sectionId ? 'block' : 'none';
+    });
+  }
+
   function togglePasswordSection() {
-    const loginSec = document.getElementById('loginFormSection');
     const passSec = document.getElementById('changePasswordSection');
-    const showingPass = passSec.style.display === 'block';
-    loginSec.style.display = showingPass ? 'block' : 'none';
-    passSec.style.display = showingPass ? 'none' : 'block';
+    showAuthSection(passSec && passSec.style.display === 'block' ? 'loginFormSection' : 'changePasswordSection');
   }
 
   async function checkLogin() {
@@ -723,14 +745,61 @@
     const user = document.getElementById('cpUser').value.trim();
     const oldPass = document.getElementById('cpOldPass').value;
     const newPass = document.getElementById('cpNewPass').value;
-    if (!getToken()) return toast('Login first, then change password.', 'error');
-    const data = await callApi('adminChangePassword', { user, oldPass, newPass }, true);
+    if (!user || !oldPass || !newPass) return toast('Fill username, old password and new password.', 'error');
+    if (newPass.length < 6) return toast('New password must be at least 6 characters.', 'error');
+    const btn = document.querySelector('#changePasswordSection .btn-primary');
+    if (btn) { btn.disabled = true; btn.innerText = 'Updating...'; }
+    const data = await callApi('adminChangePassword', { user, oldPass, newPass }, false);
+    if (btn) { btn.disabled = false; btn.innerText = 'Update Password'; }
     if (data && data.success) {
       toast(data.message, 'success');
       document.getElementById('cpOldPass').value = '';
       document.getElementById('cpNewPass').value = '';
-      togglePasswordSection();
+      showAuthSection('loginFormSection');
     } else toast(data ? data.message : 'Password update failed.', 'error');
+  }
+
+  async function requestPasswordResetCode() {
+    const userOrEmail = document.getElementById('fpUserOrEmail').value.trim();
+    if (!userOrEmail) return toast('Enter username or linked email.', 'error');
+    const btn = document.querySelector('#forgotPasswordSection .btn-primary');
+    if (btn) { btn.disabled = true; btn.innerText = 'Sending...'; }
+    const data = await callApi('adminRequestPasswordReset', { userOrEmail }, false);
+    if (btn) { btn.disabled = false; btn.innerText = 'Send Verification Code'; }
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('fpUsername').value = data.username || userOrEmail;
+      document.getElementById('fpCode').focus();
+    } else toast(data ? data.message : 'Could not send verification code.', 'error');
+  }
+
+  async function resetPasswordWithCode() {
+    const user = document.getElementById('fpUsername').value.trim() || document.getElementById('fpUserOrEmail').value.trim();
+    const code = document.getElementById('fpCode').value.trim();
+    const newPass = document.getElementById('fpNewPass').value;
+    if (!user || !code || !newPass) return toast('Enter username, code and new password.', 'error');
+    if (!/^\d{6}$/.test(code)) return toast('Enter the 6-digit verification code.', 'error');
+    if (newPass.length < 6) return toast('New password must be at least 6 characters.', 'error');
+    const btn = document.querySelector('#forgotPasswordSection .btn-success');
+    if (btn) { btn.disabled = true; btn.innerText = 'Resetting...'; }
+    const data = await callApi('adminResetPasswordWithCode', { user, code, newPass }, false);
+    if (btn) { btn.disabled = false; btn.innerText = 'Reset Password'; }
+    if (data && data.success) {
+      toast(data.message, 'success');
+      document.getElementById('fpCode').value = '';
+      document.getElementById('fpNewPass').value = '';
+      showAuthSection('loginFormSection');
+      document.getElementById('adminUser').value = user;
+    } else toast(data ? data.message : 'Password reset failed.', 'error');
+  }
+
+  function openLoggedInPasswordChange() {
+    const user = localStorage.getItem('sportsAdminUser') || '';
+    document.getElementById('cpUser').value = user;
+    document.getElementById('cpOldPass').value = '';
+    document.getElementById('cpNewPass').value = '';
+    document.getElementById('login-overlay').style.display = 'flex';
+    showAuthSection('changePasswordSection');
   }
 
   function preferredDisplay(el) {
@@ -759,6 +828,7 @@
     isAdminMode = false;
     setModeUI('none');
     document.getElementById('login-overlay').style.display = 'flex';
+    showAuthSection('loginFormSection');
     switchTab('dashboard');
   }
 
